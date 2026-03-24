@@ -39,7 +39,7 @@ final class AppState {
     }
 
     var dynamicIconEnabled: Bool {
-        get { defaults.bool(forKey: "dynamicIconEnabled") == false ? true : defaults.bool(forKey: "dynamicIconEnabled") }
+        get { defaults.object(forKey: "dynamicIconEnabled") == nil ? true : defaults.bool(forKey: "dynamicIconEnabled") }
         set { defaults.set(newValue, forKey: "dynamicIconEnabled") }
     }
 

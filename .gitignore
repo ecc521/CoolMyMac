@@ -44,3 +44,8 @@ project.xcworkspace/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Debug scratch files (should not be committed)
+debug_*.swift
+app.log
+cli_out.txt

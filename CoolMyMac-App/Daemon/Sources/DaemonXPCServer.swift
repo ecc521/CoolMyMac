@@ -3,6 +3,7 @@
 
 import Foundation
 import SMCKit
+import Security
 import os.log
 
 private let xpcLogger = Logger(subsystem: "com.coolmymac.daemon", category: "XPCServer")
@@ -28,14 +29,79 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
     // MARK: NSXPCListenerDelegate
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection newConnection: NSXPCConnection) -> Bool {
-        // Validate the connecting process is signed (basic audit)
-        newConnection.exportedInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
-        newConnection.exportedObject = XPCHandler()
-        newConnection.resume()
-        xpcLogger.info("New XPC connection accepted (PID: \(newConnection.processIdentifier, privacy: .public))")
+        let pid = newConnection.processIdentifier
+        let uid = effectiveUID(of: newConnection)
+
+        // Tier 1: Always allow root. The daemon itself and privileged tools run as uid 0.
+        if uid == 0 {
+            xpcLogger.info("XPC connection accepted — root client (PID: \(pid, privacy: .public))")
+            return accept(newConnection)
+        }
+
+        // Tier 2: Always allow our own signed application.
+        if isOurSignedApp(newConnection) {
+            xpcLogger.info("XPC connection accepted — trusted app (PID: \(pid, privacy: .public))")
+            return accept(newConnection)
+        }
+
+        // Tier 3: Allow unprivileged CLI use if the user has opted in.
+        // Setting stored in /Library/Preferences/com.coolmymac.daemon.plist — root-writable only.
+        // Can be toggled from the app (via XPC → daemon) or via:
+        //   sudo defaults write /Library/Preferences/com.coolmymac.daemon allowUnprivilegedCLI -bool YES
+        let allowCLI = UserDefaults(suiteName: "com.coolmymac.daemon")?.bool(forKey: "allowUnprivilegedCLI") ?? false
+        if allowCLI {
+            xpcLogger.info("XPC connection accepted — unprivileged CLI (PID: \(pid, privacy: .public), UID: \(uid, privacy: .public))")
+            return accept(newConnection)
+        }
+
+        // Denied — log a hint so it shows up in Console.app / unified logging.
+        xpcLogger.warning("""
+            XPC connection denied — unprivileged non-app client \
+            (PID: \(pid, privacy: .public), UID: \(uid, privacy: .public)). \
+            Use 'sudo coolmymac' or enable Allow Unprivileged CLI in CoolMyMac Preferences.
+            """)
+        return false
+    }
+
+    // MARK: - Private helpers
+
+    private func accept(_ connection: NSXPCConnection) -> Bool {
+        connection.exportedInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
+        connection.exportedObject = XPCHandler()
+        connection.resume()
         return true
     }
+
+    /// Returns the effective UID of the connecting process via its audit token.
+    private func effectiveUID(of connection: NSXPCConnection) -> uid_t {
+        var token = connection.auditToken
+        return audit_token_to_euid(token)
+    }
+
+    /// Returns true if the connecting process is signed by our Developer team.
+    /// The team ID is embedded in the code-signing requirement string below.
+    /// Replace YOURTEAMID with your 10-character Apple Developer Team ID.
+    private func isOurSignedApp(_ connection: NSXPCConnection) -> Bool {
+        var code: SecCode?
+        let attrs = [kSecGuestAttributePid: connection.processIdentifier] as CFDictionary
+        guard SecCodeCopyGuestWithAttributes(nil, attrs, [], &code) == errSecSuccess,
+              let code else { return false }
+
+        var staticCode: SecStaticCode?
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess,
+              let staticCode else { return false }
+
+        // Matches any binary signed under your Developer ID Application certificate.
+        // Update YOURTEAMID (e.g. "A1B2C3D4E5") before shipping.
+        let req = "anchor apple generic and certificate leaf[subject.OU] = \"YOURTEAMID\""
+        var reqRef: SecRequirement?
+        guard SecRequirementCreateWithString(req as CFString, [], &reqRef) == errSecSuccess,
+              let reqRef else { return false }
+
+        return SecStaticCodeCheckValidity(staticCode, [], reqRef) == errSecSuccess
+    }
 }
+
 
 // MARK: - XPC Handler
 

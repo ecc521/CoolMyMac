@@ -68,6 +68,7 @@ final class ProfileStore: @unchecked Sendable {
         guard !profile.isBuiltIn else {
             throw ProfileStoreError.cannotModifyBuiltIn(profile.id)
         }
+        try validateProfileID(profile.id)
         let data = try JSONEncoder().encode(profile)
         let url = profileURL(for: profile.id)
         try data.write(to: url, options: .atomic)
@@ -78,6 +79,7 @@ final class ProfileStore: @unchecked Sendable {
         guard !FanProfile.allBuiltIn.contains(where: { $0.id == id }) else {
             throw ProfileStoreError.cannotModifyBuiltIn(id)
         }
+        try validateProfileID(id)
         let url = profileURL(for: id)
         guard FileManager.default.fileExists(atPath: url.path) else {
             throw ProfileStoreError.profileNotFound(id)
@@ -89,6 +91,19 @@ final class ProfileStore: @unchecked Sendable {
     }
 
     // MARK: - Private Helpers
+
+    /// Validates a profile ID is safe to use as a filename component.
+    /// Allows alphanumeric characters, hyphens, and underscores; max 64 chars.
+    /// This prevents path traversal attacks (e.g. "../../etc/evil").
+    private func validateProfileID(_ id: String) throws {
+        guard !id.isEmpty, id.count <= 64 else {
+            throw ProfileStoreError.invalidProfileID(id)
+        }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        guard id.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+            throw ProfileStoreError.invalidProfileID(id)
+        }
+    }
 
     private func profileURL(for id: String) -> URL {
         profilesURL.appendingPathComponent("\(id).json")
@@ -114,11 +129,13 @@ final class ProfileStore: @unchecked Sendable {
 enum ProfileStoreError: Error, LocalizedError {
     case profileNotFound(String)
     case cannotModifyBuiltIn(String)
+    case invalidProfileID(String)
 
     var errorDescription: String? {
         switch self {
-        case .profileNotFound(let id):    return "Profile not found: \(id)"
+        case .profileNotFound(let id):     return "Profile not found: \(id)"
         case .cannotModifyBuiltIn(let id): return "Cannot modify built-in profile: \(id)"
+        case .invalidProfileID(let id):    return "Invalid profile ID '\(id)': must be alphanumeric with hyphens/underscores, max 64 chars."
         }
     }
 }

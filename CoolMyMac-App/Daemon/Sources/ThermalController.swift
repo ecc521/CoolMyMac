@@ -21,6 +21,9 @@ final class ThermalController: @unchecked Sendable {
 
     // Rolling temperature samples per fan, used for smoothing
     private var temperatureSamples: [Double] = []
+
+    // Cached fan count — does not change at runtime on a given machine.
+    // Read once at init and refreshed from the poll queue if needed.
     private var currentFanCount: Int = 0
 
     private let queue = DispatchQueue(label: "com.coolmymac.daemon.thermal", qos: .userInitiated)
@@ -43,20 +46,24 @@ final class ThermalController: @unchecked Sendable {
         t.setEventHandler { [weak self] in self?.poll() }
         t.resume()
         timer = t
-        logger.info("Thermal polling started (interval: \(self.pollInterval, privacy: .public)s)")
+        thermalLogger.info("Thermal polling started (interval: \(self.pollInterval, privacy: .public)s)")
     }
 
     func stop() {
         timer?.cancel()
         timer = nil
         resetAllFans()
-        logger.info("Thermal polling stopped. Fans reset to Auto.")
+        thermalLogger.info("Thermal polling stopped. Fans reset to Auto.")
     }
 
     // MARK: - Latest Readings (thread-safe snapshot for XPC reads)
+    // All mutations happen on `queue`. Reads from other threads use queue.sync.
 
-    private(set) var latestReadings: [SensorReading] = []
-    private(set) var latestFanStatus: [FanStatus] = []
+    private var _latestReadings: [SensorReading] = []
+    private var _latestFanStatus: [FanStatus] = []
+
+    var latestReadings: [SensorReading] { queue.sync { _latestReadings } }
+    var latestFanStatus: [FanStatus]    { queue.sync { _latestFanStatus } }
 
     // MARK: - Poll Cycle
 
@@ -74,22 +81,22 @@ final class ThermalController: @unchecked Sendable {
         // Read sensors
         do {
             let readings = try smc.readTemperatures()
-            latestReadings = readings
+            _latestReadings = readings
 
-            let drivingTemp = aggregate(readings: readings, settings: profile.settings)
+            let drivingTemp = (try? smc.drivingTemperature(for: profile.settings)) ?? 0.0
             let smoothedTemp = smooth(sample: drivingTemp, windowSeconds: profile.settings.smoothingWindowSeconds)
             let targetRPM = profile.curve.targetRPM(for: smoothedTemp)
 
             thermalLogger.debug("Driving temp: \(drivingTemp, privacy: .public)°C smoothed: \(smoothedTemp, privacy: .public)°C → target: \(targetRPM, privacy: .public) RPM")
 
-            // Apply to all fans
-            let count = try smc.fanCount()
-            for i in 0..<count {
+            // Use cached fan count — avoids an extra IOKit round-trip each cycle.
+            for i in 0..<currentFanCount {
                 try smc.setFanMinRPM(index: i, rpm: targetRPM)
             }
+            fansAreManaged = true  // #4: mark fans as under CoolMyMac control
 
             // Read back fan status for XPC clients
-            latestFanStatus = (try? smc.readAllFans().map { fan in
+            _latestFanStatus = (try? smc.readAllFans().map { fan in
                 FanStatus(id: fan.id, name: fan.name, currentRPM: fan.currentRPM,
                          minRPM: fan.minRPM, maxRPM: fan.maxRPM, isManaged: true)
             }) ?? []
@@ -99,17 +106,7 @@ final class ThermalController: @unchecked Sendable {
         }
     }
 
-    // MARK: - Temperature Aggregation
-
-    private func aggregate(readings: [SensorReading], settings: ProfileSettings) -> Double {
-        let filtered = readings.filter { settings.sources.contains($0.group) }
-        guard !filtered.isEmpty else { return 0.0 }
-
-        switch settings.aggregation {
-        case .max:     return filtered.map(\.celsius).max() ?? 0.0
-        case .average: return filtered.map(\.celsius).reduce(0, +) / Double(filtered.count)
-        }
-    }
+    // MARK: - Temperature Aggregation (delegated to SMCController — see #10 DRY fix)
 
     // MARK: - Smoothing (rolling average over N samples)
 
@@ -137,9 +134,9 @@ final class ThermalController: @unchecked Sendable {
             try smc.resetAllFans()
             fansAreManaged = false
             temperatureSamples.removeAll()
-            logger.info("All fans reset to Apple auto")
+            thermalLogger.info("All fans reset to Apple auto")
         } catch {
-            logger.error("Failed to reset fans: \(error.localizedDescription, privacy: .public)")
+            thermalLogger.error("Failed to reset fans: \(error.localizedDescription, privacy: .public)")
         }
     }
 }
