@@ -187,6 +187,7 @@ final class AppleSMC: SMCProvider {
 
     func fanCount() throws -> Int {
         let val = try readKey(kFanCountKey)
+        guard val.bytes.count >= 1 else { return 0 }
         return Int(val.bytes[0])
     }
 
