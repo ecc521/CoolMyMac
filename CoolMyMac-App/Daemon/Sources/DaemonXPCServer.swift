@@ -72,10 +72,9 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
         return true
     }
 
-    /// Returns the effective UID of the connecting process via its audit token.
+    /// Returns the effective UID of the connecting process.
     private func effectiveUID(of connection: NSXPCConnection) -> uid_t {
-        var token = connection.auditToken
-        return audit_token_to_euid(token)
+        return connection.effectiveUserIdentifier
     }
 
     /// Returns true if the connecting process is signed by our Developer team.

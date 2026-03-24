@@ -14,7 +14,7 @@ public final class SMCController {
 
     #if DEBUG
     /// Internal initializer for dependency injection during unit tests.
-    public init(provider: SMCProvider) {
+    init(provider: SMCProvider) {
         self.provider = provider
     }
     #endif

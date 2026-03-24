@@ -45,7 +45,7 @@ final class AppState {
 
     // MARK: - Client
 
-    var client = DaemonClient()
+    var client = CoolMyMacClient()
     private var refreshTimer: Timer?
 
     // MARK: - Lifecycle
