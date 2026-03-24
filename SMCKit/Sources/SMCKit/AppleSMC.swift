@@ -219,15 +219,41 @@ final class AppleSMC: SMCProvider {
     }
 
     func setFanMinRPM(index: Int, rpm: Int) throws {
+        try setFanManualMode(index: index, manual: true)
         let key = kFanTargetRPM(index)
         let bytes = doubleToSP78(Double(rpm))
         try writeKey(key, bytes: bytes, dataType: "sp78", dataSize: 2)
     }
 
     func resetFan(index: Int) throws {
-        // Restore Apple's automatic fan control by writing 0 to target RPM.
-        // On most Intel Macs, writing 0 or min to F{N}Tg hands back control.
-        try writeKey(kFanTargetRPM(index), bytes: [0, 0], dataType: "sp78", dataSize: 2)
+        try setFanManualMode(index: index, manual: false)
+    }
+
+    private func setFanManualMode(index: Int, manual: Bool) throws {
+        // 'FS! ' is a ui16 bitmask where bit `index` controls manual override for Fan `index`
+        // On modern Intel Macs, 'FS! ' is often missing or read-only, replaced by 'F0Md', 'F1Md', etc.
+        let fsKey = "FS! "
+        do {
+            let val = try readKey(fsKey)
+            var currentMask: UInt16 = 0
+            if val.bytes.count >= 2 {
+                currentMask = (UInt16(val.bytes[0]) << 8) | UInt16(val.bytes[1])
+            }
+            if manual {
+                currentMask |= (1 << index)
+            } else {
+                currentMask &= ~(1 << index)
+            }
+            let bytes = [UInt8(currentMask >> 8), UInt8(currentMask & 0xFF)]
+            try writeKey(fsKey, bytes: bytes, dataType: "ui16", dataSize: 2)
+            return // Success with FS!
+        } catch {
+            // Ignore FS! error and attempt F{index}Md fallback
+        }
+
+        let fMdKey = "F\(index)Md"
+        let bytes: [UInt8] = [manual ? 1 : 0]
+        try writeKey(fMdKey, bytes: bytes, dataType: "ui8", dataSize: 1)
     }
 
     // MARK: - Private IOKit Helpers
@@ -297,6 +323,7 @@ final class AppleSMC: SMCProvider {
         val.dataSize = outputStruct.keyInfo.dataSize
         val.dataType = fromFourCC(outputStruct.keyInfo.dataType).trimmingCharacters(in: .init(charactersIn: "\0"))
 
+        inputStruct.keyInfo = outputStruct.keyInfo
         inputStruct.keyInfo.dataSize = val.dataSize
         inputStruct.data8 = SMC_CMD_READ_BYTES
 
@@ -315,6 +342,7 @@ final class AppleSMC: SMCProvider {
 
         try callSMC(&inputStruct, output: &outputStruct)
 
+        inputStruct.keyInfo = outputStruct.keyInfo
         inputStruct.data8 = SMC_CMD_WRITE_BYTES
         inputStruct.keyInfo.dataSize = dataSize
 
