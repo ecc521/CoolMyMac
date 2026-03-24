@@ -29,13 +29,20 @@ final class ThermalController: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.coolmymac.daemon.thermal", qos: .userInitiated)
 
     private init() {
-        do {
-            smcController = try SMCController()
-            currentFanCount = (try? smcController?.fanCount()) ?? 0
-            thermalLogger.info("ThermalController initialized. Fan count: \(self.currentFanCount, privacy: .public)")
-        } catch {
-            thermalLogger.error("ThermalController failed to initialize SMCController: \(error.localizedDescription, privacy: .public)")
-        }
+        setup(with: try? SMCController())
+    }
+
+    #if DEBUG
+    /// Allows injecting a mock controller for unit testing.
+    func inject(controller: SMCController?) {
+        setup(with: controller)
+    }
+    #endif
+
+    private func setup(with controller: SMCController?) {
+        self.smcController = controller
+        self.currentFanCount = (try? smcController?.fanCount()) ?? 0
+        thermalLogger.info("ThermalController initialized. Fan count: \(self.currentFanCount, privacy: .public)")
     }
 
     // MARK: - Lifecycle
@@ -85,21 +92,28 @@ final class ThermalController: @unchecked Sendable {
 
             let drivingTemp = (try? smc.drivingTemperature(for: profile.settings)) ?? 0.0
             let smoothedTemp = smooth(sample: drivingTemp, windowSeconds: profile.settings.smoothingWindowSeconds)
-            let targetRPM = profile.curve.targetRPM(for: smoothedTemp)
+            let targetPercentage = profile.curve.targetPercentage(for: smoothedTemp)
 
-            thermalLogger.debug("Driving temp: \(drivingTemp, privacy: .public)°C smoothed: \(smoothedTemp, privacy: .public)°C → target: \(targetRPM, privacy: .public) RPM")
+            thermalLogger.debug("Driving temp: \(drivingTemp, privacy: .public)°C smoothed: \(smoothedTemp, privacy: .public)°C → target: \(Int(targetPercentage * 100), privacy: .public)%")
 
-            // Use cached fan count — avoids an extra IOKit round-trip each cycle.
-            for i in 0..<currentFanCount {
-                try smc.setFanMinRPM(index: i, rpm: targetRPM)
+            // Read fan boundaries from SMC to calculate target RPM per-fan based on percentage
+            let allFans = try smc.readAllFans()
+
+            // Apply calculated RPM per fan
+            for fan in allFans {
+                let range = Double(fan.maxRPM - fan.minRPM)
+                let targetRPM = Int(Double(fan.minRPM) + (range * targetPercentage))
+                try smc.setFanMinRPM(index: fan.id, rpm: targetRPM)
             }
             fansAreManaged = true  // #4: mark fans as under CoolMyMac control
 
-            // Read back fan status for XPC clients
-            _latestFanStatus = (try? smc.readAllFans().map { fan in
-                FanStatus(id: fan.id, name: fan.name, currentRPM: fan.currentRPM,
-                         minRPM: fan.minRPM, maxRPM: fan.maxRPM, isManaged: true)
-            }) ?? []
+            // Read back and publish status for App/CLI UI updates
+            _latestFanStatus = allFans.map { fan in
+                let range = Double(fan.maxRPM - fan.minRPM)
+                let pct = (Double(fan.currentRPM) - Double(fan.minRPM)) / range
+                return FanStatus(id: fan.id, name: fan.name, currentRPM: fan.currentRPM,
+                                 minRPM: fan.minRPM, maxRPM: fan.maxRPM, isManaged: true)
+            }
 
         } catch {
             thermalLogger.error("Thermal poll error: \(error.localizedDescription, privacy: .public)")

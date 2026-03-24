@@ -10,50 +10,50 @@ final class SMCKitTests: XCTestCase {
 
     func testFanCurveInterpolation_belowMinPoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 40, rpm: 1200),
-            CurvePoint(celsius: 80, rpm: 6000),
+            CurvePoint(celsius: 40, rpmPercentage: 0.2),
+            CurvePoint(celsius: 80, rpmPercentage: 1.0),
         ])
-        XCTAssertEqual(curve.targetRPM(for: 20), 1200, "Below min temp should return min RPM")
+        XCTAssertEqual(curve.targetPercentage(for: 20), 0.2, "Below min temp should return min %")
     }
 
     func testFanCurveInterpolation_aboveMaxPoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 40, rpm: 1200),
-            CurvePoint(celsius: 80, rpm: 6000),
+            CurvePoint(celsius: 40, rpmPercentage: 0.2),
+            CurvePoint(celsius: 80, rpmPercentage: 1.0),
         ])
-        XCTAssertEqual(curve.targetRPM(for: 100), 6000, "Above max temp should return max RPM")
+        XCTAssertEqual(curve.targetPercentage(for: 100), 1.0, "Above max temp should return max %")
     }
 
     func testFanCurveInterpolation_midpoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 40, rpm: 1000),
-            CurvePoint(celsius: 80, rpm: 5000),
+            CurvePoint(celsius: 40, rpmPercentage: 0.2),
+            CurvePoint(celsius: 80, rpmPercentage: 1.0),
         ])
-        // At midpoint (60°C), should be exactly 50% between 1000 and 5000 = 3000
-        XCTAssertEqual(curve.targetRPM(for: 60), 3000, "Midpoint should interpolate linearly")
+        // At midpoint (60°C), should be exactly 50% between 0.2 and 1.0 = 0.6
+        XCTAssertEqual(curve.targetPercentage(for: 60), 0.6, accuracy: 0.001, "Midpoint should interpolate linearly")
     }
 
     func testFanCurveInterpolation_exactPoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 55, rpm: 2000),
-            CurvePoint(celsius: 75, rpm: 4000),
+            CurvePoint(celsius: 55, rpmPercentage: 0.3),
+            CurvePoint(celsius: 75, rpmPercentage: 0.7),
         ])
-        XCTAssertEqual(curve.targetRPM(for: 55), 2000, "Exact match should return exact RPM")
-        XCTAssertEqual(curve.targetRPM(for: 75), 4000, "Exact match should return exact RPM")
+        XCTAssertEqual(curve.targetPercentage(for: 55), 0.3, "Exact match should return exact %")
+        XCTAssertEqual(curve.targetPercentage(for: 75), 0.7, "Exact match should return exact %")
     }
 
     func testFanCurveInterpolation_unsortedPoints() {
         // Points passed out of order should still produce correct results after sorting
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 80, rpm: 6000),
-            CurvePoint(celsius: 40, rpm: 1000),
+            CurvePoint(celsius: 80, rpmPercentage: 1.0),
+            CurvePoint(celsius: 40, rpmPercentage: 0.2),
         ])
-        XCTAssertEqual(curve.targetRPM(for: 60), 3500, "Unsorted points should be handled correctly")
+        XCTAssertEqual(curve.targetPercentage(for: 60), 0.6, accuracy: 0.001, "Unsorted points should be handled correctly")
     }
 
     func testFanCurveInterpolation_emptyPoints() {
         let curve = FanCurve(points: [])
-        XCTAssertEqual(curve.targetRPM(for: 70), 0, "Empty curve (Auto mode) should return 0")
+        XCTAssertEqual(curve.targetPercentage(for: 70), 0.0, "Empty curve (Auto mode) should return 0.0")
     }
 
     // MARK: - Built-in Profiles
@@ -73,9 +73,9 @@ final class SMCKitTests: XCTestCase {
 
     func testMaxProfileAlwaysReturnsMaxRPM() {
         let maxProfile = FanProfile.max
-        XCTAssertEqual(maxProfile.curve.targetRPM(for: 0),   6000)
-        XCTAssertEqual(maxProfile.curve.targetRPM(for: 50),  6000)
-        XCTAssertEqual(maxProfile.curve.targetRPM(for: 100), 6000)
+        XCTAssertEqual(maxProfile.curve.targetPercentage(for: 0),   1.0)
+        XCTAssertEqual(maxProfile.curve.targetPercentage(for: 50),  1.0)
+        XCTAssertEqual(maxProfile.curve.targetPercentage(for: 100), 1.0)
     }
 
     func testBuiltInProfilesAreBuiltIn() {

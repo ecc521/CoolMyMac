@@ -85,30 +85,31 @@ public struct FanCurve: Codable, Sendable {
         self.points = points.sorted { $0.celsius < $1.celsius }
     }
 
-    /// Interpolates the target min RPM for a given temperature.
-    public func targetRPM(for celsius: Double) -> Int {
-        guard !points.isEmpty else { return 0 }
-        if celsius <= points.first!.celsius { return points.first!.rpm }
-        if celsius >= points.last!.celsius  { return points.last!.rpm  }
+    /// Interpolates the target RPM percentage for a given temperature.
+    /// Returns a value between 0.0 and 1.0.
+    public func targetPercentage(for celsius: Double) -> Double {
+        guard !points.isEmpty else { return 0.0 }
+        if celsius <= points.first!.celsius { return points.first!.rpmPercentage }
+        if celsius >= points.last!.celsius  { return points.last!.rpmPercentage  }
 
         for i in 0..<(points.count - 1) {
             let lo = points[i], hi = points[i + 1]
             if celsius >= lo.celsius && celsius <= hi.celsius {
                 let t = (celsius - lo.celsius) / (hi.celsius - lo.celsius)
-                return Int(Double(lo.rpm) + t * Double(hi.rpm - lo.rpm))
+                return lo.rpmPercentage + t * (hi.rpmPercentage - lo.rpmPercentage)
             }
         }
-        return points.last!.rpm
+        return points.last!.rpmPercentage
     }
 }
 
 public struct CurvePoint: Codable, Sendable {
     public let celsius: Double
-    public let rpm: Int
+    public let rpmPercentage: Double
 
-    public init(celsius: Double, rpm: Int) {
+    public init(celsius: Double, rpmPercentage: Double) {
         self.celsius = celsius
-        self.rpm = rpm
+        self.rpmPercentage = max(0.0, min(1.0, rpmPercentage))
     }
 }
 

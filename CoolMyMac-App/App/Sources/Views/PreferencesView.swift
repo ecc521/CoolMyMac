@@ -257,10 +257,10 @@ struct ProfileDetailView: View {
                             Text(String(format: "%.0f°C", point.celsius))
                                 .font(.system(size: 12, design: .monospaced))
                                 .frame(width: 48, alignment: .leading)
-                            CurveBar(rpm: point.rpm, maxRPM: 6000)
-                            Text("\(point.rpm) RPM")
+                            CurveBar(percentage: point.rpmPercentage)
+                            Text("\(Int(point.rpmPercentage * 100))%")
                                 .font(.system(size: 12, design: .monospaced))
-                                .frame(width: 64, alignment: .trailing)
+                                .frame(width: 48, alignment: .trailing)
                         }
                     }
                 }
@@ -273,8 +273,7 @@ struct ProfileDetailView: View {
 }
 
 struct CurveBar: View {
-    let rpm: Int
-    let maxRPM: Int
+    let percentage: Double
 
     var body: some View {
         GeometryReader { geo in
@@ -282,7 +281,7 @@ struct CurveBar: View {
                 Capsule().fill(Color.primary.opacity(0.08))
                 Capsule()
                     .fill(Color.blue.opacity(0.7))
-                    .frame(width: geo.size.width * CGFloat(rpm) / CGFloat(maxRPM))
+                    .frame(width: geo.size.width * CGFloat(percentage))
             }
         }
         .frame(height: 6)

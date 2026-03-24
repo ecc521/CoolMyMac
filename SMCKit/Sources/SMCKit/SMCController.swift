@@ -12,6 +12,13 @@ public final class SMCController {
 
     private let provider: SMCProvider
 
+    #if DEBUG
+    /// Internal initializer for dependency injection during unit tests.
+    public init(provider: SMCProvider) {
+        self.provider = provider
+    }
+    #endif
+
     /// Initializes the controller, selecting the appropriate backend.
     /// - Throws: `SMCError.unsupportedHardware` if no suitable backend is available.
     public init() throws {

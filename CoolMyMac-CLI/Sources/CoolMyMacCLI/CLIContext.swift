@@ -12,7 +12,7 @@ enum CLIContext {
     // MARK: - Sensor & Fan reads (read-only, no root needed via XPC)
 
     static func readSensors() async -> Result<[SensorReading], CLIContextError> {
-        let xpc = XPCClient()
+        let xpc = CoolMyMacClient()
         do {
             let readings = try await xpc.readSensors()
             return .success(readings)
@@ -32,7 +32,7 @@ enum CLIContext {
     }
 
     static func readFans() async -> Result<[FanStatus], CLIContextError> {
-        let xpc = XPCClient()
+        let xpc = CoolMyMacClient()
         do {
             let fans = try await xpc.readFans()
             return .success(fans)
@@ -53,7 +53,7 @@ enum CLIContext {
     // MARK: - Profile management (requires daemon — no direct-SMC fallback)
 
     static func activeProfile() async -> Result<FanProfile, CLIContextError> {
-        let xpc = XPCClient()
+        let xpc = CoolMyMacClient()
         do {
             let profile = try await xpc.activeProfile()
             return .success(profile)
@@ -63,7 +63,7 @@ enum CLIContext {
     }
 
     static func listProfiles() async -> Result<[String], CLIContextError> {
-        let xpc = XPCClient()
+        let xpc = CoolMyMacClient()
         do {
             let names = try await xpc.listProfiles()
             return .success(names)
@@ -73,7 +73,7 @@ enum CLIContext {
     }
 
     static func setActiveProfile(_ name: String) async -> Result<Void, CLIContextError> {
-        let xpc = XPCClient()
+        let xpc = CoolMyMacClient()
         do {
             try await xpc.setActiveProfile(name)
             return .success(())
@@ -85,7 +85,7 @@ enum CLIContext {
     // MARK: - Reset (requires root if direct)
 
     static func resetAllFans() async -> Result<Void, CLIContextError> {
-        let xpc = XPCClient()
+        let xpc = CoolMyMacClient()
         do {
             // Reset = set Auto profile
             try await xpc.setActiveProfile("auto")

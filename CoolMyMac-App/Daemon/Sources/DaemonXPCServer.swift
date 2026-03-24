@@ -92,8 +92,7 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
               let staticCode else { return false }
 
         // Matches any binary signed under your Developer ID Application certificate.
-        // Update YOURTEAMID (e.g. "A1B2C3D4E5") before shipping.
-        let req = "anchor apple generic and certificate leaf[subject.OU] = \"YOURTEAMID\""
+        let req = "anchor apple generic and certificate leaf[subject.OU] = \"G24X82SAVJ\""
         var reqRef: SecRequirement?
         guard SecRequirementCreateWithString(req as CFString, [], &reqRef) == errSecSuccess,
               let reqRef else { return false }

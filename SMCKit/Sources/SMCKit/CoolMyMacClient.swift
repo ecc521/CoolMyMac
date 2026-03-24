@@ -2,16 +2,15 @@
 // XPC connection wrapper for communicating with the CoolMyMac daemon.
 
 import Foundation
-import SMCKit
 
 /// Wraps an NSXPCConnection to the CoolMyMac daemon.
 /// All calls are async wrappers around the `withReply:` XPC protocol.
 // NSXPCConnection is not Sendable in Swift 6; we manage thread-safety via its internal serial queue.
-final class XPCClient: @unchecked Sendable {
+public final class CoolMyMacClient: @unchecked Sendable {
 
     private let connection: NSXPCConnection
 
-    init() {
+    public init() {
         connection = NSXPCConnection(machServiceName: CoolMyMacXPCServiceName, options: [])
         connection.remoteObjectInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
         connection.resume()
@@ -31,7 +30,7 @@ final class XPCClient: @unchecked Sendable {
 
     // MARK: - Public API (mirrors SMCController interface for drop-in fallback)
 
-    func readSensors() async throws -> [SensorReading] {
+    public func readSensors() async throws -> [SensorReading] {
         try await withCheckedThrowingContinuation { continuation in
             guard let proxy else {
                 continuation.resume(throwing: XPCError.connectionFailed)
@@ -50,7 +49,7 @@ final class XPCClient: @unchecked Sendable {
         }
     }
 
-    func readFans() async throws -> [FanStatus] {
+    public func readFans() async throws -> [FanStatus] {
         try await withCheckedThrowingContinuation { continuation in
             guard let proxy else {
                 continuation.resume(throwing: XPCError.connectionFailed)
@@ -69,7 +68,7 @@ final class XPCClient: @unchecked Sendable {
         }
     }
 
-    func activeProfile() async throws -> FanProfile {
+    public func activeProfile() async throws -> FanProfile {
         try await withCheckedThrowingContinuation { continuation in
             guard let proxy else {
                 continuation.resume(throwing: XPCError.connectionFailed)
@@ -88,7 +87,7 @@ final class XPCClient: @unchecked Sendable {
         }
     }
 
-    func listProfiles() async throws -> [String] {
+    public func listProfiles() async throws -> [String] {
         try await withCheckedThrowingContinuation { continuation in
             guard let proxy else {
                 continuation.resume(throwing: XPCError.connectionFailed)
@@ -107,7 +106,7 @@ final class XPCClient: @unchecked Sendable {
         }
     }
 
-    func setActiveProfile(_ name: String) async throws {
+    public func setActiveProfile(_ name: String) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             guard let proxy else {
                 continuation.resume(throwing: XPCError.connectionFailed)
@@ -120,7 +119,38 @@ final class XPCClient: @unchecked Sendable {
         }
     }
 
-    func daemonVersion() async throws -> String {
+    public func saveCustomProfile(_ profile: FanProfile) async throws {
+        let data = try JSONEncoder().encode(profile)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            guard let proxy else {
+                continuation.resume(throwing: XPCError.connectionFailed)
+                return
+            }
+            proxy.saveCustomProfile(data) { error in
+                if let error { continuation.resume(throwing: error) }
+                else { continuation.resume() }
+            }
+        }
+    }
+
+    public func deleteCustomProfile(id: String) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            guard let proxy else {
+                continuation.resume(throwing: XPCError.connectionFailed)
+                return
+            }
+            proxy.deleteCustomProfile(id) { error in
+                if let error { continuation.resume(throwing: error) }
+                else { continuation.resume() }
+            }
+        }
+    }
+
+    public func isDaemonReachable() async -> Bool {
+        (try? await daemonVersion()) != nil
+    }
+
+    public func daemonVersion() async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             guard let proxy else {
                 continuation.resume(throwing: XPCError.connectionFailed)
@@ -135,12 +165,12 @@ final class XPCClient: @unchecked Sendable {
 
 // MARK: - XPC Errors
 
-enum XPCError: Error, LocalizedError {
+public enum XPCError: Error, LocalizedError {
     case connectionFailed
     case noData
     case daemonNotRunning
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .connectionFailed:  return "Failed to connect to CoolMyMac daemon."
         case .noData:            return "Daemon returned no data."

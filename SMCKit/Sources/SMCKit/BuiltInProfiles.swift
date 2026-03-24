@@ -29,12 +29,12 @@ public extension FanProfile {
         displayName: "Balanced",
         isBuiltIn: true,
         curve: FanCurve(points: [
-            CurvePoint(celsius: 40, rpm: 1200),  // Idle — match Apple's floor
-            CurvePoint(celsius: 55, rpm: 1500),  // Light load
-            CurvePoint(celsius: 65, rpm: 2000),  // Moderate load
-            CurvePoint(celsius: 75, rpm: 3000),  // Heavy load
-            CurvePoint(celsius: 85, rpm: 4500),  // Thermal stress
-            CurvePoint(celsius: 95, rpm: 6000),  // Max — emergency ceiling
+            CurvePoint(celsius: 40, rpmPercentage: 0.0),   // ~Idle / Floor
+            CurvePoint(celsius: 55, rpmPercentage: 0.06),  // ~1500 RPM equivalent
+            CurvePoint(celsius: 65, rpmPercentage: 0.16),  // ~2000 RPM equivalent
+            CurvePoint(celsius: 75, rpmPercentage: 0.38),  // ~3000 RPM equivalent
+            CurvePoint(celsius: 85, rpmPercentage: 0.69),  // ~4500 RPM equivalent
+            CurvePoint(celsius: 95, rpmPercentage: 1.0),   // Max
         ]),
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
@@ -51,11 +51,11 @@ public extension FanProfile {
         displayName: "Performance",
         isBuiltIn: true,
         curve: FanCurve(points: [
-            CurvePoint(celsius: 40, rpm: 2000),  // Higher idle floor
-            CurvePoint(celsius: 55, rpm: 2500),  // Light load
-            CurvePoint(celsius: 65, rpm: 3500),  // Moderate load
-            CurvePoint(celsius: 75, rpm: 4500),  // Heavy load
-            CurvePoint(celsius: 85, rpm: 6000),  // Aggressive ceiling — max at 85°C
+            CurvePoint(celsius: 40, rpmPercentage: 0.16),  // Higher idle floor (~2000 RPM)
+            CurvePoint(celsius: 55, rpmPercentage: 0.27),  // Light load (~2500 RPM)
+            CurvePoint(celsius: 65, rpmPercentage: 0.48),  // Moderate load (~3500 RPM)
+            CurvePoint(celsius: 75, rpmPercentage: 0.69),  // Heavy load (~4500 RPM)
+            CurvePoint(celsius: 85, rpmPercentage: 1.0),   // Aggressive ceiling — max at 85°C
         ]),
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
@@ -72,8 +72,8 @@ public extension FanProfile {
         displayName: "Max",
         isBuiltIn: true,
         curve: FanCurve(points: [
-            CurvePoint(celsius: 0,   rpm: 6000),  // Always max
-            CurvePoint(celsius: 100, rpm: 6000),
+            CurvePoint(celsius: 0,   rpmPercentage: 1.0),  // Always max
+            CurvePoint(celsius: 100, rpmPercentage: 1.0),
         ]),
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
