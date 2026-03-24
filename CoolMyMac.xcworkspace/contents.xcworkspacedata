@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:SMCKit">
+   </FileRef>
+   <FileRef
+      location = "group:CoolMyMac-CLI">
+   </FileRef>
+   <FileRef
+      location = "group:CoolMyMac-App/CoolMyMac.xcodeproj">
+   </FileRef>
+</Workspace>

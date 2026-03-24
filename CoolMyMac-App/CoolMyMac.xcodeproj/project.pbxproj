@@ -1,0 +1,542 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		153F3CE7309C80B7C4CECC60 /* DaemonClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F026B46F2691131E53BFCD8 /* DaemonClient.swift */; };
+		17857AF513451F4F50E6FD64 /* DaemonManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14008271FDA11D28AC34A2AD /* DaemonManager.swift */; };
+		22CD6849340E59F97E80BC0E /* DaemonXPCServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0FB81C64CF53F0E35305179 /* DaemonXPCServer.swift */; };
+		3DE3A3563CC6C22F461A22A1 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978B42FA4BAFD0C0B65A9620 /* main.swift */; };
+		4F1A4D2419F1850EABEB3400 /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 901F4B96F741B8758B355216 /* PopoverView.swift */; };
+		55A9E33D3A65AF9A36131A2E /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C978846B2C2F13F0A1011010 /* PreferencesView.swift */; };
+		64E6F8307307CB6B17EB9844 /* ThermalController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80C2E5366027B87D3766150 /* ThermalController.swift */; };
+		971617EF0F4AAD2AD4D6F9AF /* CoolMyMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A442DDDFBB8EEC644106BBE /* CoolMyMacApp.swift */; };
+		9E20F5AED2473AF2B907E255 /* MenuBarIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C05407CE6468470D1F27990 /* MenuBarIconView.swift */; };
+		AE3992469E9F015EE72EEEA5 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E220723B139B3B110F3EED69 /* ProfileStore.swift */; };
+		D9AA4EE763B829F6B08D360E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AB86206F2B450FF6119A7BC /* AppState.swift */; };
+		DC585547D2A948FE45BC79B3 /* SMCKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F3B6B6369B0913FE2FC389E /* SMCKit */; };
+		E9191FBA1087A2FE2ECC5853 /* SMCKit in Frameworks */ = {isa = PBXBuildFile; productRef = A3F323A241113A20AACACF17 /* SMCKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		05A75FBFE2374D24DC251862 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 00FDF4B1090238194299F9AC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 101ED571BC2F61436B0E02F4;
+			remoteInfo = "CoolMyMac-Daemon";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		14008271FDA11D28AC34A2AD /* DaemonManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonManager.swift; sourceTree = "<group>"; };
+		2AB86206F2B450FF6119A7BC /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		49C926416172133078FE7994 /* CoolMyMac-Daemon */ = {isa = PBXFileReference; includeInIndex = 0; path = "CoolMyMac-Daemon"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4F026B46F2691131E53BFCD8 /* DaemonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonClient.swift; sourceTree = "<group>"; };
+		8C05407CE6468470D1F27990 /* MenuBarIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconView.swift; sourceTree = "<group>"; };
+		901F4B96F741B8758B355216 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
+		978B42FA4BAFD0C0B65A9620 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		9A442DDDFBB8EEC644106BBE /* CoolMyMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoolMyMacApp.swift; sourceTree = "<group>"; };
+		A80C2E5366027B87D3766150 /* ThermalController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThermalController.swift; sourceTree = "<group>"; };
+		B0FB81C64CF53F0E35305179 /* DaemonXPCServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonXPCServer.swift; sourceTree = "<group>"; };
+		C978846B2C2F13F0A1011010 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
+		E220723B139B3B110F3EED69 /* ProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStore.swift; sourceTree = "<group>"; };
+		E26EF5C38C8161D438E30AF6 /* SMCKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SMCKit; path = ../SMCKit; sourceTree = SOURCE_ROOT; };
+		FCCD71964CCFAE47990E89E4 /* CoolMyMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CoolMyMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0AD870B85F203C02A9A645AC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DC585547D2A948FE45BC79B3 /* SMCKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2BB9101D2791093C373E7EAB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9191FBA1087A2FE2ECC5853 /* SMCKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		33448775C194DA69FD374FF7 = {
+			isa = PBXGroup;
+			children = (
+				4F0DA368236A029E75A45648 /* App */,
+				9E951EAA6CE47F18101509C0 /* Daemon */,
+				391027364B45ADBE326BC106 /* Packages */,
+				6FA314004B7F1F73465732DF /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		391027364B45ADBE326BC106 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				E26EF5C38C8161D438E30AF6 /* SMCKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		4F0DA368236A029E75A45648 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				C56C8EB22DDA04E02EE7088B /* Sources */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		6ED2D44200E7251BA186BCE0 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				8C05407CE6468470D1F27990 /* MenuBarIconView.swift */,
+				901F4B96F741B8758B355216 /* PopoverView.swift */,
+				C978846B2C2F13F0A1011010 /* PreferencesView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		6FA314004B7F1F73465732DF /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				49C926416172133078FE7994 /* CoolMyMac-Daemon */,
+				FCCD71964CCFAE47990E89E4 /* CoolMyMac.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9ACF344154CB8B3F2DE52D0A /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				B0FB81C64CF53F0E35305179 /* DaemonXPCServer.swift */,
+				978B42FA4BAFD0C0B65A9620 /* main.swift */,
+				E220723B139B3B110F3EED69 /* ProfileStore.swift */,
+				A80C2E5366027B87D3766150 /* ThermalController.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		9E951EAA6CE47F18101509C0 /* Daemon */ = {
+			isa = PBXGroup;
+			children = (
+				9ACF344154CB8B3F2DE52D0A /* Sources */,
+			);
+			path = Daemon;
+			sourceTree = "<group>";
+		};
+		C56C8EB22DDA04E02EE7088B /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				2AB86206F2B450FF6119A7BC /* AppState.swift */,
+				9A442DDDFBB8EEC644106BBE /* CoolMyMacApp.swift */,
+				4F026B46F2691131E53BFCD8 /* DaemonClient.swift */,
+				14008271FDA11D28AC34A2AD /* DaemonManager.swift */,
+				6ED2D44200E7251BA186BCE0 /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		101ED571BC2F61436B0E02F4 /* CoolMyMac-Daemon */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4AD6236447A9BCEC8EA21330 /* Build configuration list for PBXNativeTarget "CoolMyMac-Daemon" */;
+			buildPhases = (
+				6A97CD67ECEA9BE7AB40B147 /* Sources */,
+				0AD870B85F203C02A9A645AC /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "CoolMyMac-Daemon";
+			packageProductDependencies = (
+				0F3B6B6369B0913FE2FC389E /* SMCKit */,
+			);
+			productName = "CoolMyMac-Daemon";
+			productReference = 49C926416172133078FE7994 /* CoolMyMac-Daemon */;
+			productType = "com.apple.product-type.tool";
+		};
+		B6372F2EE5EEA9D6B593984B /* CoolMyMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 07E84B35A0B3DFB5FF776313 /* Build configuration list for PBXNativeTarget "CoolMyMac" */;
+			buildPhases = (
+				0D75502EC6F8201BFD8010EA /* Sources */,
+				2BB9101D2791093C373E7EAB /* Frameworks */,
+				3F3F4C9B949CF614B768C162 /* Embed Daemon in App Bundle */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E453FCE542D6F788AABC0652 /* PBXTargetDependency */,
+			);
+			name = CoolMyMac;
+			packageProductDependencies = (
+				A3F323A241113A20AACACF17 /* SMCKit */,
+			);
+			productName = CoolMyMac;
+			productReference = FCCD71964CCFAE47990E89E4 /* CoolMyMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		00FDF4B1090238194299F9AC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					101ED571BC2F61436B0E02F4 = {
+						ProvisioningStyle = Manual;
+					};
+					B6372F2EE5EEA9D6B593984B = {
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 49767DD2918771CEF194C918 /* Build configuration list for PBXProject "CoolMyMac" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 33448775C194DA69FD374FF7;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "../SMCKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 6FA314004B7F1F73465732DF /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B6372F2EE5EEA9D6B593984B /* CoolMyMac */,
+				101ED571BC2F61436B0E02F4 /* CoolMyMac-Daemon */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		3F3F4C9B949CF614B768C162 /* Embed Daemon in App Bundle */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed Daemon in App Bundle";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "DAEMON_BINARY=\"${BUILT_PRODUCTS_DIR}/CoolMyMac-Daemon\"\nDAEMON_DEST=\"${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Library/LaunchDaemons\"\nPLIST_SRC=\"${SRCROOT}/Resources/com.coolmymac.daemon.plist\"\n\nmkdir -p \"${DAEMON_DEST}\"\ncp \"${DAEMON_BINARY}\" \"${DAEMON_DEST}/CoolMyMac-Daemon\"\ncp \"${PLIST_SRC}\" \"${DAEMON_DEST}/com.coolmymac.daemon.plist\"\n\necho \"✅ Daemon embedded at ${DAEMON_DEST}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0D75502EC6F8201BFD8010EA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D9AA4EE763B829F6B08D360E /* AppState.swift in Sources */,
+				971617EF0F4AAD2AD4D6F9AF /* CoolMyMacApp.swift in Sources */,
+				153F3CE7309C80B7C4CECC60 /* DaemonClient.swift in Sources */,
+				17857AF513451F4F50E6FD64 /* DaemonManager.swift in Sources */,
+				9E20F5AED2473AF2B907E255 /* MenuBarIconView.swift in Sources */,
+				4F1A4D2419F1850EABEB3400 /* PopoverView.swift in Sources */,
+				55A9E33D3A65AF9A36131A2E /* PreferencesView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6A97CD67ECEA9BE7AB40B147 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				22CD6849340E59F97E80BC0E /* DaemonXPCServer.swift in Sources */,
+				AE3992469E9F015EE72EEEA5 /* ProfileStore.swift in Sources */,
+				64E6F8307307CB6B17EB9844 /* ThermalController.swift in Sources */,
+				3DE3A3563CC6C22F461A22A1 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		E453FCE542D6F788AABC0652 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 101ED571BC2F61436B0E02F4 /* CoolMyMac-Daemon */;
+			targetProxy = 05A75FBFE2374D24DC251862 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2BC16A5FB88C97B812FE321E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Daemon/CoolMyMacDaemon.entitlements;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Daemon/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coolmymac.daemon;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		3929DE58132D8B6CFE8ECAA2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/CoolMyMac.entitlements;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coolmymac.app;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		79B7DF5499E68BF5B08B4A50 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		8C112793A8EDD8D129236E7F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Daemon/CoolMyMacDaemon.entitlements;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Daemon/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coolmymac.daemon;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A4A4068BB59D272DE63CE3DC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		BD10DDCCE808352B2C086D5C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/CoolMyMac.entitlements;
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coolmymac.app;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		07E84B35A0B3DFB5FF776313 /* Build configuration list for PBXNativeTarget "CoolMyMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3929DE58132D8B6CFE8ECAA2 /* Debug */,
+				BD10DDCCE808352B2C086D5C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		49767DD2918771CEF194C918 /* Build configuration list for PBXProject "CoolMyMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A4A4068BB59D272DE63CE3DC /* Debug */,
+				79B7DF5499E68BF5B08B4A50 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4AD6236447A9BCEC8EA21330 /* Build configuration list for PBXNativeTarget "CoolMyMac-Daemon" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2BC16A5FB88C97B812FE321E /* Debug */,
+				8C112793A8EDD8D129236E7F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "../SMCKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../SMCKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0F3B6B6369B0913FE2FC389E /* SMCKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SMCKit;
+		};
+		A3F323A241113A20AACACF17 /* SMCKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SMCKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 00FDF4B1090238194299F9AC /* Project object */;
+}

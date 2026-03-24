@@ -1,0 +1,82 @@
+name: CoolMyMac
+options:
+  bundleIdPrefix: com.coolmymac
+  deploymentTarget:
+    macOS: "15.0"
+  defaultConfig: Debug
+  createIntermediateGroups: true
+
+packages:
+  SMCKit:
+    path: ../SMCKit
+
+targets:
+
+  # ─── Daemon ────────────────────────────────────────────────────────────────
+  CoolMyMac-Daemon:
+    type: tool
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - Daemon/Sources
+    dependencies:
+      - package: SMCKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coolmymac.daemon
+        INFOPLIST_FILE: Daemon/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Daemon/CoolMyMacDaemon.entitlements
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Developer ID Application"
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_VERSION: 6.0
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+
+  # ─── App ───────────────────────────────────────────────────────────────────
+  CoolMyMac:
+    type: application
+    platform: macOS
+    deploymentTarget: "15.0"
+    sources:
+      - App/Sources
+    resources:
+      - App/Assets.xcassets
+    dependencies:
+      - package: SMCKit
+      - target: CoolMyMac-Daemon
+        embed: false   # We copy it manually into Contents/Library/LaunchDaemons
+    postBuildScripts:
+      - name: Embed Daemon in App Bundle
+        script: |
+          DAEMON_BINARY="${BUILT_PRODUCTS_DIR}/CoolMyMac-Daemon"
+          DAEMON_DEST="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Library/LaunchDaemons"
+          PLIST_SRC="${SRCROOT}/Resources/com.coolmymac.daemon.plist"
+
+          mkdir -p "${DAEMON_DEST}"
+          cp "${DAEMON_BINARY}" "${DAEMON_DEST}/CoolMyMac-Daemon"
+          cp "${PLIST_SRC}" "${DAEMON_DEST}/com.coolmymac.daemon.plist"
+
+          echo "✅ Daemon embedded at ${DAEMON_DEST}"
+        basedOnDependencyAnalysis: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coolmymac.app
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/CoolMyMac.entitlements
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "Developer ID Application"
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_VERSION: 6.0
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+
+schemes:
+  CoolMyMac:
+    build:
+      targets:
+        CoolMyMac: all
+        CoolMyMac-Daemon: [build]
+
+  CoolMyMac-Daemon:
+    build:
+      targets:
+        CoolMyMac-Daemon: all

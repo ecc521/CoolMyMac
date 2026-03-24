@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Label must exactly match the bundle identifier -->
+    <key>Label</key>
+    <string>com.coolmymac.daemon</string>
+
+    <!-- Path to the daemon binary inside the App bundle.
+         SMAppService resolves this relative to the App bundle root. -->
+    <key>Program</key>
+    <string>Contents/Library/LaunchDaemons/CoolMyMac-Daemon</string>
+
+    <!-- XPC Mach service name — must match CoolMyMacXPCServiceName -->
+    <key>MachServices</key>
+    <dict>
+        <key>com.coolmymac.daemon</key>
+        <true/>
+    </dict>
+
+    <!-- Run as root to allow SMC writes -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep the daemon alive if it crashes -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Standard I/O to system log -->
+    <key>StandardOutPath</key>
+    <string>/var/log/com.coolmymac.daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/com.coolmymac.daemon.error.log</string>
+</dict>
+</plist>
