@@ -60,4 +60,14 @@ final class DaemonManager: ObservableObject {
             NSWorkspace.shared.open(url)
         }
     }
+
+    // MARK: - Repair
+
+    func repairDaemon() async throws {
+        // Unregister and re-register
+        try? await uninstallDaemon()
+        try await Task.sleep(nanoseconds: 500_000_000)
+        try await installDaemon()
+        logger.info("Daemon repair attempted")
+    }
 }

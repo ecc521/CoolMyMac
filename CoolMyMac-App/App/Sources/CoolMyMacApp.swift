@@ -8,13 +8,12 @@ import SMCKit
 struct CoolMyMacApp: App {
 
     @State private var state = AppState()
-    @State private var preferencesOpen = false
 
     var body: some Scene {
 
         // MARK: - Menu Bar Extra
         MenuBarExtra {
-            PopoverView(state: state, onOpenPreferences: { preferencesOpen = true })
+            PopoverView(state: state)
                 .frame(width: 320)
         } label: {
             MenuBarIconView(state: state)

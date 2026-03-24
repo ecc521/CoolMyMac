@@ -8,7 +8,7 @@ import SMCKit
 struct PopoverView: View {
 
     var state: AppState
-    var onOpenPreferences: () -> Void
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,7 +30,8 @@ struct PopoverView: View {
                     .foregroundStyle(.blue)
                 // Gear → Preferences
                 Button {
-                    onOpenPreferences()
+                    openWindow(id: "preferences")
+                    NSApp.activate(ignoringOtherApps: true)
                 } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 13))
@@ -69,14 +70,32 @@ struct PopoverView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 12)
 
-            // MARK: 5. Warning bar (conditional — daemon denied)
-            if state.daemonStatus == .requiresApproval {
-                DaemonWarningBar()
+            // MARK: 5. Warning bar (conditional — daemon missing or broken)
+            if state.daemonStatus == .notInstalled || state.daemonStatus == .requiresApproval || state.daemonStatus == .unreachable {
+                DaemonWarningBar(status: state.daemonStatus)
                     .padding(.horizontal, 14)
                     .padding(.top, 8)
             }
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 8)
+
+            // MARK: 6. Quit Button
+            Divider().opacity(0.5)
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                HStack {
+                    Text("Quit CoolMyMac")
+                        .font(.system(size: 12))
+                    Spacer()
+                    Text("⌘Q")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.plain)
         }
         .frame(width: 320)
         .background(.regularMaterial)
@@ -90,6 +109,7 @@ struct PopoverView: View {
 struct TempTileView: View {
     let label: String
     let temp: Double?
+    @AppStorage("decimalResolution") private var decimalResolution: Int = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -98,7 +118,7 @@ struct TempTileView: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             if let t = temp {
-                Text(String(format: "%.1f°C", t))
+                Text(String(format: decimalResolution == 1 ? "%.1f°C" : "%.0f°C", t))
                     .font(.system(size: 22, weight: .semibold, design: .rounded))
                     .foregroundStyle(tempColor(t))
             } else {
@@ -216,21 +236,48 @@ struct PresetPill: View {
 
 struct DaemonWarningBar: View {
 
+    var status: DaemonInstallStatus
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
                 .font(.system(size: 12))
-            Text("Daemon not installed — fan control inactive.")
-                .font(.system(size: 11))
-                .foregroundStyle(.primary)
-            Spacer()
-            Button("Grant Permission") {
-                DaemonManager.shared.openSystemSettingsForApproval()
+            
+            if status == .requiresApproval {
+                Text("Daemon needs approval.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button("Open Settings") {
+                    DaemonManager.shared.openSystemSettingsForApproval()
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.blue)
+            } else if status == .unreachable {
+                Text("Daemon disconnected.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button("Restart") {
+                    Task { try? await DaemonManager.shared.repairDaemon() }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.blue)
+            } else {
+                Text("Fan control is inactive.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button("Install Daemon") {
+                    Task { try? await DaemonManager.shared.installDaemon() }
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.blue)
             }
-            .buttonStyle(.plain)
-            .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(.blue)
         }
         .padding(10)
         .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))

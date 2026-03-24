@@ -70,7 +70,7 @@ struct SetProfileCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "set",
         abstract: "Set the active fan profile",
-        discussion: "Built-in profiles: auto, balanced, performance, max"
+        discussion: "Built-in profiles: quiet, balanced, performance, max"
     )
 
     @Argument(help: "Profile name to activate (e.g. 'balanced', 'performance', 'my-profile')")

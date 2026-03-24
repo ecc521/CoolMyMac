@@ -5,6 +5,9 @@
 import Foundation
 import SMCKit
 import Observation
+import os.log
+
+private let logger = Logger(subsystem: "com.coolmymac.app", category: "AppState")
 
 @Observable
 @MainActor
@@ -33,14 +36,32 @@ final class AppState {
     @ObservationIgnored
     private let defaults = UserDefaults.standard
 
-    var iconDisplayMode: IconDisplayMode {
-        get { IconDisplayMode(rawValue: defaults.string(forKey: "iconDisplayMode") ?? "") ?? .iconOnly }
-        set { defaults.set(newValue.rawValue, forKey: "iconDisplayMode") }
+    var iconDisplayMode: IconDisplayMode = {
+        let saved = UserDefaults.standard.string(forKey: "iconDisplayMode") ?? ""
+        return IconDisplayMode(rawValue: saved) ?? .iconOnly
+    }() {
+        didSet { defaults.set(iconDisplayMode.rawValue, forKey: "iconDisplayMode") }
     }
 
     var dynamicIconEnabled: Bool {
         get { defaults.object(forKey: "dynamicIconEnabled") == nil ? true : defaults.bool(forKey: "dynamicIconEnabled") }
         set { defaults.set(newValue, forKey: "dynamicIconEnabled") }
+    }
+    
+    var updateInterval: Double = {
+        let saved = UserDefaults.standard.double(forKey: "updateInterval")
+        return saved == 0 ? 2.0 : saved
+    }() {
+        didSet {
+            defaults.set(updateInterval, forKey: "updateInterval")
+            Task { try? await client.setUpdateInterval(updateInterval) }
+            stopRefreshing()
+            startRefreshing()
+        }
+    }
+
+    var decimalResolution: Int = UserDefaults.standard.integer(forKey: "decimalResolution") {
+        didSet { defaults.set(decimalResolution, forKey: "decimalResolution") }
     }
 
     // MARK: - Client
@@ -50,13 +71,18 @@ final class AppState {
 
     // MARK: - Lifecycle
 
+    init() {
+        // Start refreshing immediately so data is preloaded
+        startRefreshing()
+    }
+
     func startRefreshing() {
+        guard refreshTimer == nil else { return }  // prevent duplicate timers
         refresh()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
             self?.refresh()
         }
     }
-
     func stopRefreshing() {
         refreshTimer?.invalidate()
         refreshTimer = nil
@@ -64,20 +90,64 @@ final class AppState {
 
     func refresh() {
         Task { @MainActor in
+            let baseStatus = DaemonManager.shared.currentStatus()
+            
             isRefreshing = true
-            async let s = client.readSensors()
-            async let f = client.readFans()
-            async let p = client.activeProfile()
-
-            sensors = (try? await s) ?? sensors
-            fans = (try? await f) ?? fans
-            activeProfile = (try? await p) ?? activeProfile
+            let isReachable = await client.isDaemonReachable()
+            
+            if baseStatus == .installed && !isReachable {
+                daemonStatus = .unreachable
+            } else {
+                daemonStatus = baseStatus
+            }
+            
+            logger.info("Refreshing... daemonStatus=\(String(describing: self.daemonStatus)) reachable=\(isReachable)")
+            
+            if daemonStatus == .installed && isReachable {
+                async let s = client.readSensors()
+                async let f = client.readFans()
+                async let p = client.activeProfile()
+                
+                sensors = (try? await s) ?? sensors
+                fans = (try? await f) ?? fans
+                activeProfile = (try? await p) ?? activeProfile
+            } else {
+                let fallback = await Task.detached {
+                    do {
+                        let smc = try SMCController()
+                        logger.info("SMCController init succeeded")
+                        let s = (try? smc.readTemperatures()) ?? []
+                        logger.info("readTemperatures returned \(s.count) sensors")
+                        let f = (try? smc.readAllFans().map {
+                            FanStatus(id: $0.id, name: $0.name, currentRPM: $0.currentRPM, minRPM: $0.minRPM, maxRPM: $0.maxRPM, isManaged: false)
+                        }) ?? []
+                        logger.info("readAllFans returned \(f.count) fans")
+                        return (s, f)
+                    } catch {
+                        logger.error("SMC fallback failed: \(error.localizedDescription)")
+                        return (Array<SensorReading>(), Array<FanStatus>())
+                    }
+                }.value
+                
+                if !fallback.0.isEmpty { sensors = fallback.0 }
+                if !fallback.1.isEmpty { fans = fallback.1 }
+                activeProfile = .quiet
+            }
+            logger.info("Refresh complete. sensors=\(self.sensors.count) fans=\(self.fans.count)")
             isRefreshing = false
         }
     }
 
     func setProfile(_ profile: FanProfile) {
         Task { @MainActor in
+            if daemonStatus == .notInstalled {
+                try? await DaemonManager.shared.installDaemon()
+                return
+            } else if daemonStatus == .requiresApproval {
+                DaemonManager.shared.openSystemSettingsForApproval()
+                return
+            }
+            
             try? await client.setActiveProfile(profile.id)
             activeProfile = profile
         }
@@ -104,5 +174,6 @@ enum DaemonInstallStatus {
     case installed
     case notInstalled
     case requiresApproval   // User denied, can re-request
+    case unreachable        // SMAppService says installed, but XPC pipe is dead
     case unknown
 }

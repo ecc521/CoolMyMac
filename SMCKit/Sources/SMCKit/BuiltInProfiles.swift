@@ -5,12 +5,12 @@ import Foundation
 
 public extension FanProfile {
 
-    // MARK: - Auto
+    // MARK: - Quiet
 
-    /// Auto mode: no override. Apple's thermal management stays in full control.
-    static let auto = FanProfile(
-        id: "auto",
-        displayName: "Auto",
+    /// Quiet mode: no override. Apple's thermal management stays in full control.
+    static let quiet = FanProfile(
+        id: "quiet",
+        displayName: "Quiet",
         isBuiltIn: true,
         curve: FanCurve(points: []),  // No points = no control
         settings: ProfileSettings(
@@ -84,5 +84,5 @@ public extension FanProfile {
 
     // MARK: - All Built-ins
 
-    static let allBuiltIn: [FanProfile] = [.auto, .balanced, .performance, .max]
+    static let allBuiltIn: [FanProfile] = [.quiet, .balanced, .performance, .max]
 }

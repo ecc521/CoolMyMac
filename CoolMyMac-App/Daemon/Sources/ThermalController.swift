@@ -14,7 +14,7 @@ final class ThermalController: @unchecked Sendable {
     static let shared = ThermalController()
 
     // How often we poll sensors (seconds)
-    private let pollInterval: TimeInterval = 2.0
+    private var pollInterval: TimeInterval
 
     private var timer: DispatchSourceTimer?
     private var smcController: SMCController?
@@ -29,6 +29,8 @@ final class ThermalController: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.coolmymac.daemon.thermal", qos: .userInitiated)
 
     private init() {
+        let saved = UserDefaults.standard.double(forKey: "updateInterval")
+        self.pollInterval = saved == 0 ? 2.0 : saved
         setup(with: try? SMCController())
     }
 
@@ -61,6 +63,15 @@ final class ThermalController: @unchecked Sendable {
         timer = nil
         resetAllFans()
         thermalLogger.info("Thermal polling stopped. Fans reset to Auto.")
+    }
+    
+    func setPollInterval(_ interval: TimeInterval) {
+        guard self.pollInterval != interval else { return }
+        self.pollInterval = interval
+        if timer != nil {
+            stop()
+            start()
+        }
     }
 
     // MARK: - Latest Readings (thread-safe snapshot for XPC reads)

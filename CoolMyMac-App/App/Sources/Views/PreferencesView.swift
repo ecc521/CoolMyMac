@@ -106,6 +106,31 @@ struct GeneralPrefsView: View {
                 }
                 .padding(4)
             }
+            
+            GroupBox("Advanced") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Update Interval", selection: Binding(
+                        get: { state.updateInterval },
+                        set: { state.updateInterval = $0 }
+                    )) {
+                        Text("1 second").tag(1.0)
+                        Text("2 seconds").tag(2.0)
+                        Text("3 seconds").tag(3.0)
+                        Text("5 seconds").tag(5.0)
+                    }
+                    .frame(width: 260)
+
+                    Picker("Decimal places", selection: Binding(
+                        get: { state.decimalResolution },
+                        set: { state.decimalResolution = $0 }
+                    )) {
+                        Text("0 (e.g. 45°C)").tag(0)
+                        Text("1 (e.g. 45.1°C)").tag(1)
+                    }
+                    .frame(width: 260)
+                }
+                .padding(4)
+            }
 
             Spacer()
         }
@@ -116,6 +141,7 @@ struct GeneralPrefsView: View {
         case .installed:        return .green
         case .notInstalled:     return .red
         case .requiresApproval: return .orange
+        case .unreachable:      return .orange
         case .unknown:          return .gray
         }
     }
@@ -125,6 +151,7 @@ struct GeneralPrefsView: View {
         case .installed:        return "Daemon running"
         case .notInstalled:     return "Daemon not installed"
         case .requiresApproval: return "Approval required — click to re-grant"
+        case .unreachable:      return "Daemon disconnected"
         case .unknown:          return "Status unknown"
         }
     }
@@ -292,6 +319,7 @@ struct CurveBar: View {
 
 struct SensorsPrefsView: View {
     var state: AppState
+    @AppStorage("decimalResolution") private var decimalResolution: Int = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -312,7 +340,7 @@ struct SensorsPrefsView: View {
                                 HStack {
                                     Text(s.name).font(.system(size: 12))
                                     Spacer()
-                                    Text(String(format: "%.1f°C", s.celsius))
+                                    Text(String(format: decimalResolution == 1 ? "%.1f°C" : "%.0f°C", s.celsius))
                                         .font(.system(size: 12, design: .monospaced))
                                         .foregroundStyle(s.celsius > 80 ? .orange : .primary)
                                 }

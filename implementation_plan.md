@@ -19,7 +19,7 @@ Fan speed is controlled via a **piecewise linear thermal curve**: an ordered arr
 
 | Preset | Description |
 |---|---|
-| **Auto** | No override — Apple's default thermal management is active. CoolMyMac does not touch fan speeds. |
+| **Quiet** | No override — Apple's default thermal management is active. CoolMyMac does not touch fan speeds. |
 | **Balanced** *(default)* | Matches Apple's minimum RPM floor; raises the ceiling more aggressively for developer workloads. |
 | **Performance** | Higher minimum RPM floor; fans ramp up earlier and hit max around 85°C. |
 | **Max** | Fans always run at maximum RPM. |
@@ -69,7 +69,7 @@ Opens when the user clicks the menu bar icon. ~320px wide, native popover style 
 2. **Sensor readings** — Two stat tiles side by side: CPU Temp and GPU Temp (large value, small label)
 3. **Fan RPMs** — One row per physical fan (e.g., "Left Fan — 2,400 RPM", "Right Fan — 2,200 RPM"). Hidden if only one fan.
 4. **Preset selector** — Segmented-style picker or pill buttons:
-   - Built-in: `Auto` · `Balanced` · `Performance` · `Max`
+   - Built-in: `Quiet` · `Balanced` · `Performance` · `Max`
    - Custom slots: Up to 3 named custom presets appear **only if at least one is defined** (e.g., `"Dev Mode"`)
    - Active preset highlighted in blue
 5. **Footer** — Small text: daemon status indicator (green dot = running, red = not installed)

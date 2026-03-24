@@ -12,11 +12,14 @@ private let kIOACPIClassName = "AppleSMC"
 private struct SMCKeyData_t {
     var key: UInt32 = 0
     var vers: SMCKeyData_vers_t = SMCKeyData_vers_t()
+    var padding_vers: (UInt8, UInt8) = (0,0) // 2 bytes padding to align pLimitData to 4
     var pLimitData: SMCKeyData_pLimitData_t = SMCKeyData_pLimitData_t()
     var keyInfo: SMCKeyData_keyInfo_t = SMCKeyData_keyInfo_t()
+    var padding_keyInfo: (UInt8, UInt8, UInt8) = (0,0,0) // 3 bytes padding
     var result: UInt8 = 0
     var status: UInt8 = 0
     var data8: UInt8 = 0
+    var padding_data8: UInt8 = 0 // 1 byte padding to align data32 to 4
     var data32: UInt32 = 0
     var bytes: (UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
                 UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8, UInt8,
@@ -118,6 +121,7 @@ private func kFanTargetRPM(_ index: Int) -> String  { "F\(index)Tg" }
 /// sp78 is a fixed-point format used by SMC for fan speeds.
 /// Value = bytes[0] << 6 | bytes[1] >> 2
 private func sp78ToDouble(_ bytes: [UInt8]) -> Double {
+    guard bytes.count >= 2 else { return 0.0 }
     let raw = (UInt16(bytes[0]) << 8) | UInt16(bytes[1])
     return Double(raw) / 4.0
 }
@@ -163,13 +167,19 @@ final class AppleSMC: SMCProvider {
     func readTemperatures() throws -> [SensorReading] {
         var readings: [SensorReading] = []
         for entry in kTemperatureKeys {
-            if let celsius = try? readTemperatureKey(entry.key), celsius > 0 {
-                readings.append(SensorReading(
-                    id: entry.key,
-                    name: entry.name,
-                    group: entry.group,
-                    celsius: celsius
-                ))
+            do {
+                let celsius = try readTemperatureKey(entry.key)
+                // 125+ usually indicates an unconnected/disabled Intel sensor (often 128 or 129)
+                if celsius > 0 && celsius < 125.0 {
+                    readings.append(SensorReading(
+                        id: entry.key,
+                        name: entry.name,
+                        group: entry.group,
+                        celsius: celsius
+                    ))
+                }
+            } catch {
+                // Ignore missing keys silently
             }
         }
         return readings
@@ -186,9 +196,9 @@ final class AppleSMC: SMCProvider {
             throw SMCError.keyNotFound("Fan index \(index) out of range (count: \(count))")
         }
 
-        let actualRPM  = Int(sp78ToDouble(try readKey(kFanActualRPM(index)).bytes))
-        let minRPM     = Int(sp78ToDouble(try readKey(kFanMinRPM(index)).bytes))
-        let maxRPM     = Int(sp78ToDouble(try readKey(kFanMaxRPM(index)).bytes))
+        let actualRPM  = Int(try readRPMKey(kFanActualRPM(index)))
+        let minRPM     = Int(try readRPMKey(kFanMinRPM(index)))
+        let maxRPM     = Int(try readRPMKey(kFanMaxRPM(index)))
 
         // Distinguish left/right fans on MacBook Pros
         let name: String
@@ -222,24 +232,51 @@ final class AppleSMC: SMCProvider {
 
     // MARK: - Private IOKit Helpers
 
+    private func readRPMKey(_ key: String) throws -> Double {
+        let val = try readKey(key)
+        if val.dataType == "flt " && val.dataSize == 4 && val.bytes.count >= 4 {
+            let num = val.bytes.withUnsafeBytes { $0.load(as: UInt32.self) }
+            
+            // Try natively (usually little-endian on Intel)
+            let dNative = Double(Float(bitPattern: num))
+            if !dNative.isNaN && !dNative.isInfinite && dNative >= 0 && dNative <= 20000 {
+                return min(max(dNative, 0.0), 20000.0)
+            }
+            
+            // Fallback to swapped (Big-Endian)
+            let dSwapped = Double(Float(bitPattern: num.byteSwapped))
+            return dSwapped.isNaN || dSwapped.isInfinite ? 0.0 : min(max(dSwapped, 0.0), 20000.0)
+        }
+        let d = sp78ToDouble(val.bytes)
+        return d.isNaN || d.isInfinite ? 0.0 : min(max(d, 0.0), 20000.0)
+    }
+
     private func readTemperatureKey(_ key: String) throws -> Double {
         let val = try readKey(key)
         // Temperature keys use "sp78" (same as fans) or "flt " type
         if val.dataType == "sp78" {
+            guard val.bytes.count >= 2 else { return 0.0 }
             // sp78: low byte is fractional, value / 256
             let raw = (Int(val.bytes[0]) << 8) | Int(val.bytes[1])
             return Double(raw) / 256.0
-        } else if val.dataType == "flt " {
+        } else if val.dataType == "flt " && val.bytes.count >= 4 {
             // IEEE 754 float
-            var floatVal: Float = 0
-            withUnsafeMutableBytes(of: &floatVal) { ptr in
-                for i in 0..<4 {
-                    ptr[i] = val.bytes[3 - i] // big-endian
-                }
+            let num = val.bytes.withUnsafeBytes { $0.load(as: UInt32.self) }
+            
+            // Try natively (usually little-endian on Intel)
+            let dNative = Double(Float(bitPattern: num))
+            if !dNative.isNaN && !dNative.isInfinite && dNative >= -100 && dNative <= 300 {
+                return min(max(dNative, -100.0), 300.0)
             }
-            return Double(floatVal)
+            
+            // Fallback to swapped (Big-Endian)
+            let dSwapped = Double(Float(bitPattern: num.byteSwapped))
+            return dSwapped.isNaN || dSwapped.isInfinite ? 0.0 : min(max(dSwapped, -100.0), 300.0)
         }
-        return Double(val.bytes[0])
+        
+        guard val.bytes.count >= 1 else { return 0.0 }
+        let d = Double(val.bytes[0])
+        return d.isNaN || d.isInfinite ? 0.0 : min(max(d, -100.0), 300.0)
     }
 
     private func readKey(_ key: String) throws -> SMCVal_t {
@@ -250,6 +287,10 @@ final class AppleSMC: SMCProvider {
         inputStruct.data8 = SMC_CMD_READ_KEYINFO
 
         try callSMC(&inputStruct, output: &outputStruct)
+        
+        if outputStruct.result == 0x84 {
+            throw SMCError.keyNotFound(key)
+        }
 
         var val = SMCVal_t()
         val.key = key

@@ -57,7 +57,7 @@ struct TempsCommand: AsyncParsableCommand {
                 for sensor in sensors.sorted(by: { $0.celsius > $1.celsius }) {
                     let bar = thermalBar(celsius: sensor.celsius)
                     let arrow = sensor.celsius >= 80 ? " ⚠️" : ""
-                    print(String(format: "  %-20s  %5.1f°C  %@%@",
+                    print(String(format: "  %-20@  %5.1f°C  %@%@",
                           sensor.name, sensor.celsius, bar, arrow))
                 }
             }

@@ -53,7 +53,7 @@ final class SMCKitTests: XCTestCase {
 
     func testFanCurveInterpolation_emptyPoints() {
         let curve = FanCurve(points: [])
-        XCTAssertEqual(curve.targetPercentage(for: 70), 0.0, "Empty curve (Auto mode) should return 0.0")
+        XCTAssertEqual(curve.targetPercentage(for: 70), 0.0, "Empty curve (Quiet mode) should return 0.0")
     }
 
     // MARK: - Built-in Profiles
@@ -61,14 +61,14 @@ final class SMCKitTests: XCTestCase {
     func testBuiltInProfilesAreAllPresent() {
         XCTAssertEqual(FanProfile.allBuiltIn.count, 4)
         let ids = FanProfile.allBuiltIn.map(\.id)
-        XCTAssertTrue(ids.contains("auto"))
+        XCTAssertTrue(ids.contains("quiet"))
         XCTAssertTrue(ids.contains("balanced"))
         XCTAssertTrue(ids.contains("performance"))
         XCTAssertTrue(ids.contains("max"))
     }
 
-    func testAutoProfileHasNoControlPoints() {
-        XCTAssertTrue(FanProfile.auto.curve.points.isEmpty, "Auto should have no curve points — Apple stays in control")
+    func testQuietProfileHasNoControlPoints() {
+        XCTAssertTrue(FanProfile.quiet.curve.points.isEmpty, "Quiet should have no curve points — Apple stays in control")
     }
 
     func testMaxProfileAlwaysReturnsMaxRPM() {

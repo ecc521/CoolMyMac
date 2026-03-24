@@ -8,7 +8,7 @@
 
     <!-- Path to the daemon binary inside the App bundle.
          SMAppService resolves this relative to the App bundle root. -->
-    <key>Program</key>
+    <key>BundleProgram</key>
     <string>Contents/Library/LaunchDaemons/CoolMyMac-Daemon</string>
 
     <!-- XPC Mach service name — must match CoolMyMacXPCServiceName -->

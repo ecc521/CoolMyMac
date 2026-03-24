@@ -21,7 +21,7 @@ import Foundation
     /// Returns JSON-encoded `FanProfile` for the currently active profile.
     func activeProfile(withReply reply: @escaping (Data?, Error?) -> Void)
 
-    /// Sets the active profile by name. Built-in names: "auto", "balanced", "performance", "max".
+    /// Sets the active profile by name. Built-in names: "quiet", "balanced", "performance", "max".
     /// Custom profile names are user-defined.
     func setActiveProfile(_ name: String, withReply reply: @escaping (Error?) -> Void)
 
@@ -38,6 +38,12 @@ import Foundation
 
     /// Returns the daemon's version string.
     func daemonVersion(withReply reply: @escaping (String) -> Void)
+    
+    /// Sets the thermal polling interval for the background daemon. (Seconds)
+    func setUpdateInterval(_ interval: Double, withReply reply: @escaping (Error?) -> Void)
+    
+    /// Gets the current thermal polling interval from the daemon.
+    func getUpdateInterval(withReply reply: @escaping (Double, Error?) -> Void)
 }
 
 /// Mach service name for XPC — must match the daemon's Info.plist MachServices entry.

@@ -171,6 +171,20 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     func daemonVersion(withReply reply: @escaping (String) -> Void) {
         reply(daemonVersionString)
     }
+    
+    // MARK: Settings
+    
+    func setUpdateInterval(_ interval: Double, withReply reply: @escaping (Error?) -> Void) {
+        UserDefaults.standard.set(interval, forKey: "updateInterval")
+        ThermalController.shared.setPollInterval(interval)
+        reply(nil)
+    }
+    
+    func getUpdateInterval(withReply reply: @escaping (Double, Error?) -> Void) {
+        let saved = UserDefaults.standard.double(forKey: "updateInterval")
+        let interval = saved == 0 ? 2.0 : saved
+        reply(interval, nil)
+    }
 
     // MARK: Private
 

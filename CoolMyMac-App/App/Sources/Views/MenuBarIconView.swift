@@ -7,6 +7,7 @@ import SMCKit
 struct MenuBarIconView: View {
 
     var state: AppState
+    @AppStorage("decimalResolution") private var decimalResolution: Int = 0
 
     private static let minTemp = 60.0
     private static let maxTemp = 90.0
@@ -26,7 +27,7 @@ struct MenuBarIconView: View {
                 EmptyView()
             case .iconAndTemp:
                 if let temp = state.cpuTemp {
-                    Text(String(format: "%.0f°", temp))
+                    Text(String(format: decimalResolution == 1 ? "%.1f°" : "%.0f°", temp))
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundStyle(state.dynamicIconEnabled ? thermalColor : Color.primary)
                 }
