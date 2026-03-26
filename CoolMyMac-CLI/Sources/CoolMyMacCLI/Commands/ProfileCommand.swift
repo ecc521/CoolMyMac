@@ -56,7 +56,7 @@ struct GetProfileCommand: AsyncParsableCommand {
             } else {
                 print("  Curve:           \(profile.curve.points.count) breakpoints")
                 for point in profile.curve.points {
-                    print(String(format: "    %5.1f°C → %5d RPM", point.celsius, point.rpm))
+                    print(String(format: "    %5.1f°C → %5.1f%%", point.celsius, point.rpmPercentage * 100))
                 }
             }
             print()

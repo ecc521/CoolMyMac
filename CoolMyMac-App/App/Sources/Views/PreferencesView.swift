@@ -66,6 +66,12 @@ struct GeneralPrefsView: View {
 
             GroupBox("Menu Bar") {
                 VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Launch CoolMyMac at login", isOn: Binding(
+                        get: { state.launchAtLogin },
+                        set: { state.launchAtLogin = $0 }
+                    ))
+                    .tint(.blue)
+
                     Picker("Display Mode", selection: Binding(
                         get: { state.iconDisplayMode },
                         set: { state.iconDisplayMode = $0 }
@@ -191,10 +197,34 @@ struct ProfilesPrefsView: View {
 
                     Divider()
 
-                    Text("Custom profiles will appear here")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 4)
+                    if state.customProfiles.isEmpty {
+                        Text("Custom profiles will appear here")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 4)
+                    } else {
+                        ForEach(state.customProfiles) { profile in
+                            ProfileListRow(
+                                profile: profile,
+                                isActive: state.activeProfile.id == profile.id,
+                                isSelected: selectedProfile?.id == profile.id
+                            )
+                            .onTapGesture {
+                                selectedProfile = profile
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    HStack {
+                        Button(action: { createNewProfile() }) { Image(systemName: "plus") }
+                            .buttonStyle(.plain)
+                        Button(action: { deleteSelectedProfile() }) { Image(systemName: "minus") }
+                            .buttonStyle(.plain)
+                            .disabled(selectedProfile?.isBuiltIn ?? true)
+                    }
+                    .padding(.top, 4)
                 }
                 .frame(width: 180)
 
@@ -206,6 +236,36 @@ struct ProfilesPrefsView: View {
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+            }
+        }
+    }
+
+    private func createNewProfile() {
+        let id = UUID().uuidString
+        let newProfile = FanProfile(
+            id: id,
+            displayName: "New Profile",
+            isBuiltIn: false,
+            curve: FanCurve(points: [
+                CurvePoint(celsius: 50.0, rpmPercentage: 0.3),
+                CurvePoint(celsius: 85.0, rpmPercentage: 1.0)
+            ]),
+            settings: ProfileSettings()
+        )
+        Task {
+            try? await state.client.saveCustomProfile(newProfile)
+            await MainActor.run { state.startRefreshing() }
+            selectedProfile = newProfile
+        }
+    }
+
+    private func deleteSelectedProfile() {
+        guard let p = selectedProfile, !p.isBuiltIn else { return }
+        Task {
+            try? await state.client.deleteCustomProfile(id: p.id)
+            await MainActor.run {
+                selectedProfile = nil
+                state.startRefreshing()
             }
         }
     }
@@ -240,6 +300,20 @@ struct ProfileListRow: View {
 }
 
 struct ProfileDetailView: View {
+    let profile: FanProfile
+    var state: AppState
+
+    var body: some View {
+        if profile.isBuiltIn {
+            BuiltInProfileDetailView(profile: profile, state: state)
+        } else {
+            CustomProfileDetailView(profile: profile, state: state)
+                .id(profile.id) // Force view redraw when selecting a different custom profile
+        }
+    }
+}
+
+struct BuiltInProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
 
@@ -305,6 +379,133 @@ struct ProfileDetailView: View {
     }
 }
 
+struct CustomProfileDetailView: View {
+    let profile: FanProfile
+    var state: AppState
+
+    @State private var displayName: String
+    @State private var editablePoints: [EditablePoint]
+
+    struct EditablePoint: Identifiable {
+        let id = UUID()
+        var celsius: Double
+        var rpmPercentage: Double
+    }
+
+    init(profile: FanProfile, state: AppState) {
+        self.profile = profile
+        self.state = state
+        self._displayName = State(initialValue: profile.displayName)
+        let mapped = profile.curve.points.map { EditablePoint(celsius: $0.celsius, rpmPercentage: $0.rpmPercentage) }
+        self._editablePoints = State(initialValue: mapped)
+    }
+
+    private var hasChanges: Bool {
+        if displayName != profile.displayName { return true }
+        if editablePoints.count != profile.curve.points.count { return true }
+        for (i, ep) in editablePoints.enumerated() {
+            let op = profile.curve.points[i]
+            if ep.celsius != op.celsius || ep.rpmPercentage != op.rpmPercentage { return true }
+        }
+        return false
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                TextField("Profile Name", text: $displayName)
+                    .font(.headline)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 200)
+
+                Spacer()
+
+                if hasChanges {
+                    Button("Save") {
+                        let sorted = editablePoints.sorted(by: { $0.celsius < $1.celsius })
+                        let newPoints = sorted.map { CurvePoint(celsius: $0.celsius, rpmPercentage: $0.rpmPercentage) }
+                        let newProfile = FanProfile(
+                            id: profile.id,
+                            displayName: displayName,
+                            isBuiltIn: false,
+                            curve: FanCurve(points: newPoints),
+                            settings: profile.settings
+                        )
+                        Task { try? await state.client.saveCustomProfile(newProfile); state.startRefreshing() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+                    .controlSize(.small)
+                }
+
+                Button("Activate") {
+                    state.setProfile(profile)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.blue)
+                .disabled(state.activeProfile.id == profile.id || hasChanges)
+                .controlSize(.small)
+            }
+
+            Text("Fan Curve")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 8) {
+                ForEach($editablePoints.indices, id: \.self) { i in
+                    HStack {
+                        TextField("Temp", value: $editablePoints[i].celsius, format: .number)
+                            .frame(width: 50)
+                            .textFieldStyle(.roundedBorder)
+                        Text("°C")
+                            .font(.system(size: 12))
+
+                        Spacer().frame(width: 20)
+
+                        TextField("Speed", value: Binding(get: {
+                            editablePoints[i].rpmPercentage * 100
+                        }, set: { new in
+                            editablePoints[i].rpmPercentage = new / 100.0
+                        }), format: .number)
+                            .frame(width: 50)
+                            .textFieldStyle(.roundedBorder)
+                        Text("%")
+                            .font(.system(size: 12))
+
+                        Button(action: {
+                            editablePoints.remove(at: i)
+                        }) {
+                            Image(systemName: "minus.circle.fill")
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, 8)
+                        
+                        CurveBar(percentage: editablePoints[i].rpmPercentage)
+                            .frame(maxWidth: 80)
+                            .padding(.leading, 12)
+                    }
+                }
+
+                Button(action: {
+                    let lastT = editablePoints.last?.celsius ?? 40.0
+                    let lastP = editablePoints.last?.rpmPercentage ?? 0.3
+                    editablePoints.append(EditablePoint(celsius: lastT + 10, rpmPercentage: lastP + 0.1))
+                }) {
+                    Label("Add Point", systemImage: "plus.circle")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.blue)
+                .font(.system(size: 12))
+                .padding(.top, 4)
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
 struct CurveBar: View {
     let percentage: Double
 
@@ -353,11 +554,29 @@ struct SensorsPrefsView: View {
                                 .padding(.vertical, 2)
                             }
                         } header: {
-                            Text(group.rawValue)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                                .textCase(.uppercase)
-                                .padding(.top, 8)
+                            HStack {
+                                Text(group.rawValue)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                                    .textCase(.uppercase)
+                                
+                                Spacer()
+                                
+                                Toggle("Use for fan control", isOn: Binding(
+                                    get: { state.activeSensors.contains(group) },
+                                    set: { isOn in
+                                        if isOn {
+                                            state.activeSensors.insert(group)
+                                        } else if state.activeSensors.count > 1 {
+                                            state.activeSensors.remove(group)
+                                        }
+                                    }
+                                ))
+                                .controlSize(.mini)
+                                .tint(.blue)
+                            }
+                            .padding(.top, 8)
+                            .padding(.bottom, 4)
                         }
                     }
                 }

@@ -30,7 +30,7 @@ final class ThermalController: @unchecked Sendable {
 
     private init() {
         let saved = UserDefaults.standard.double(forKey: "updateInterval")
-        self.pollInterval = saved == 0 ? 2.0 : saved
+        self.pollInterval = saved == 0 ? 1.0 : saved
         setup(with: try? SMCController())
     }
 
@@ -101,7 +101,20 @@ final class ThermalController: @unchecked Sendable {
             let readings = try smc.readTemperatures()
             _latestReadings = readings
 
-            let drivingTemp = (try? smc.drivingTemperature(for: profile.settings)) ?? 0.0
+            // Global override: Use activeSensors from UserDefaults instead of the profile's sources
+            let savedStrings = UserDefaults.standard.stringArray(forKey: "activeSensors") ?? [
+                SensorGroup.cpuCore.rawValue, 
+                SensorGroup.gpu.rawValue
+            ]
+            let globalSources = savedStrings.compactMap(SensorGroup.init(rawValue:))
+            
+            let settings = ProfileSettings(
+                sources: globalSources.isEmpty ? [.cpuCore, .gpu] : globalSources,
+                aggregation: profile.settings.aggregation,
+                smoothingWindowSeconds: profile.settings.smoothingWindowSeconds
+            )
+
+            let drivingTemp = (try? smc.drivingTemperature(for: settings)) ?? 0.0
             let smoothedTemp = smooth(sample: drivingTemp, windowSeconds: profile.settings.smoothingWindowSeconds)
             let targetPercentage = profile.curve.targetPercentage(for: smoothedTemp)
 

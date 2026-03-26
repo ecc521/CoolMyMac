@@ -145,6 +145,15 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
         encode(ids, reply: reply)
     }
 
+    func getCustomProfiles(withReply reply: @escaping (Data?, Error?) -> Void) {
+        let ids = ProfileStore.shared.listAllProfileIDs()
+        let customProfiles = ids.compactMap { id -> FanProfile? in
+            let profile = ProfileStore.shared.profile(named: id)
+            return (profile?.isBuiltIn == false) ? profile : nil
+        }
+        encode(customProfiles, reply: reply)
+    }
+
     func saveCustomProfile(_ profileData: Data, withReply reply: @escaping (Error?) -> Void) {
         do {
             let profile = try decoder.decode(FanProfile.self, from: profileData)
@@ -182,8 +191,35 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     
     func getUpdateInterval(withReply reply: @escaping (Double, Error?) -> Void) {
         let saved = UserDefaults.standard.double(forKey: "updateInterval")
-        let interval = saved == 0 ? 2.0 : saved
+        let interval = saved == 0 ? 1.0 : saved
         reply(interval, nil)
+    }
+
+    // MARK: - Global Sensor Selection
+
+    func setActiveSensors(_ groups: [String], withReply reply: @escaping (Error?) -> Void) {
+        UserDefaults.standard.set(groups, forKey: "activeSensors")
+        reply(nil)
+    }
+
+    func getActiveSensors(withReply reply: @escaping ([String], Error?) -> Void) {
+        let saved = UserDefaults.standard.stringArray(forKey: "activeSensors") ?? [
+            SensorGroup.cpuCore.rawValue, 
+            SensorGroup.gpu.rawValue
+        ]
+        reply(saved, nil)
+    }
+
+    // MARK: - App Security Settings
+
+    func setAllowUnprivilegedCLI(_ allow: Bool, withReply reply: @escaping (Error?) -> Void) {
+        UserDefaults.standard.set(allow, forKey: "allowUnprivilegedCLI")
+        reply(nil)
+    }
+
+    func getAllowUnprivilegedCLI(withReply reply: @escaping (Bool, Error?) -> Void) {
+        let saved = UserDefaults.standard.bool(forKey: "allowUnprivilegedCLI")
+        reply(saved, nil)
     }
 
     // MARK: Private

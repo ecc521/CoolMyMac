@@ -27,6 +27,9 @@ import Foundation
 
     /// Returns JSON-encoded array of all `FanProfile` names (built-in + custom).
     func listProfiles(withReply reply: @escaping (Data?, Error?) -> Void)
+    
+    /// Returns JSON-encoded array of `FanProfile` structs for all custom profiles.
+    func getCustomProfiles(withReply reply: @escaping (Data?, Error?) -> Void)
 
     /// Saves (or replaces) a custom profile. Accepts JSON-encoded `FanProfile`.
     func saveCustomProfile(_ profileData: Data, withReply reply: @escaping (Error?) -> Void)
@@ -44,6 +47,22 @@ import Foundation
     
     /// Gets the current thermal polling interval from the daemon.
     func getUpdateInterval(withReply reply: @escaping (Double, Error?) -> Void)
+
+    // MARK: - Global Sensor Selection
+
+    /// Sets the active sensor groups used for aggregation by the daemon.
+    func setActiveSensors(_ groups: [String], withReply reply: @escaping (Error?) -> Void)
+
+    /// Gets the current active sensor groups from the daemon.
+    func getActiveSensors(withReply reply: @escaping ([String], Error?) -> Void)
+
+    // MARK: - App Security Settings
+
+    /// Toggles whether unprivileged terminal sessions can issue commands to the daemon.
+    func setAllowUnprivilegedCLI(_ allow: Bool, withReply reply: @escaping (Error?) -> Void)
+
+    /// Retrieves the current unprivileged terminal execution policy.
+    func getAllowUnprivilegedCLI(withReply reply: @escaping (Bool, Error?) -> Void)
 }
 
 /// Mach service name for XPC — must match the daemon's Info.plist MachServices entry.

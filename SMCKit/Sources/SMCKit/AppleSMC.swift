@@ -201,12 +201,22 @@ final class AppleSMC: SMCProvider {
         let minRPM     = Int(try readRPMKey(kFanMinRPM(index)))
         let maxRPM     = Int(try readRPMKey(kFanMaxRPM(index)))
 
-        // Distinguish left/right fans on MacBook Pros
-        let name: String
-        if count == 2 {
-            name = index == 0 ? "Left Fan" : "Right Fan"
-        } else {
-            name = "Fan \(index)"
+        var name = ""
+        if let val = try? readKey("F\(index)ID"), !val.bytes.isEmpty {
+            if let decoded = String(bytes: val.bytes, encoding: .utf8) {
+                // SMC strings are often padded with spaces or null terminators
+                name = decoded.trimmingCharacters(in: .whitespacesAndNewlines.union(.init(charactersIn: "\0")))
+            }
+        }
+        
+        if name.isEmpty {
+            if count == 1 {
+                name = "Fan"
+            } else if count == 2 {
+                name = index == 0 ? "Left Fan" : "Right Fan"
+            } else {
+                name = "Fan \(index + 1)"
+            }
         }
 
         return FanStatus(
@@ -220,20 +230,25 @@ final class AppleSMC: SMCProvider {
     }
 
     func setFanMinRPM(index: Int, rpm: Int) throws {
-        // Modern SMCs often reject F0Tg writes, even with F0Md set.
-        // Instead, we raise the F0Mn (minimum RPM floor), which is safer and usually widely allowed.
-        // Apple's loop will then clamp its target to be at least this minimum.
-        let key = kFanMinRPM(index)
-        let bytes = doubleToSP78(Double(rpm))
-        try writeKey(key, bytes: bytes, dataType: "sp78", dataSize: 2)
+        // Many SMCs require F0Md (manual mode) to be enabled before accepting RPM overrides.
+        try setFanManualMode(index: index, manual: true)
+        
+        // Some Logic Boards allow raising F0Mn (minimum floor), which Apple safely clamps.
+        // Others hardware-lock F0Mn (returning 0x86 NotWritable) and require F0Tg (target).
+        // Try F0Mn first, fallback to F0Tg.
+        do {
+            try writeRPMKey(kFanMinRPM(index), rpm: Double(rpm))
+        } catch {
+            try writeRPMKey(kFanTargetRPM(index), rpm: Double(rpm))
+        }
     }
 
     func resetFan(index: Int) throws {
-        // To reset the fan, we drop the minimum floor back to 0. 
-        // The SMC will automatically clamp 0 back up to its physical hardware minimum limitation.
-        let key = kFanMinRPM(index)
-        let bytes = doubleToSP78(0.0)
-        try? writeKey(key, bytes: bytes, dataType: "sp78", dataSize: 2)
+        // Reset both Target and Minimum down to 0, which Apple's loop will snap up to hardware defaults.
+        try? writeRPMKey(kFanTargetRPM(index), rpm: 0.0)
+        try? writeRPMKey(kFanMinRPM(index), rpm: 0.0)
+        
+        // Relinquish the manual lock.
         try? setFanManualMode(index: index, manual: false)
     }
 
@@ -283,6 +298,23 @@ final class AppleSMC: SMCProvider {
         }
         let d = sp78ToDouble(val.bytes)
         return d.isNaN || d.isInfinite ? 0.0 : min(max(d, 0.0), 20000.0)
+    }
+
+    private func writeRPMKey(_ key: String, rpm: Double) throws {
+        let info = try readKey(key) // Query hardware dictionary for the exact expected data type
+        
+        if info.dataType == "flt " && info.dataSize == 4 {
+            var f = Float(rpm)
+            let bytes = withUnsafeBytes(of: &f) { Array($0) }
+            try writeKey(key, bytes: bytes, dataType: "flt ", dataSize: 4)
+        } else if info.dataType == "fpe2" {
+            let bytes = doubleToSP78(rpm) // fpe2 and sp78 share identical physical bit layouts
+            try writeKey(key, bytes: bytes, dataType: "fpe2", dataSize: 2)
+        } else {
+            // Default sp78 formatting for legacy Apple arrays
+            let bytes = doubleToSP78(rpm)
+            try writeKey(key, bytes: bytes, dataType: "sp78", dataSize: 2)
+        }
     }
 
     private func readTemperatureKey(_ key: String) throws -> Double {
@@ -363,7 +395,7 @@ final class AppleSMC: SMCProvider {
         try callSMC(&inputStruct, output: &outputStruct)
 
         if outputStruct.result != 0 {
-            throw SMCError.writeFailed(key)
+            throw SMCError.writeFailed("\(key) - HexCode: 0x\(String(format: "%X", outputStruct.result))")
         }
     }
 

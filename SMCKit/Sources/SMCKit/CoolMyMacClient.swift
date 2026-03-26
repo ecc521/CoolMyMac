@@ -1,4 +1,4 @@
-// CoolMyMacClient.swift
+// XPCClient.swift
 // XPC connection wrapper for communicating with the CoolMyMac daemon.
 
 import Foundation
@@ -8,16 +8,44 @@ import Foundation
 // NSXPCConnection is not Sendable in Swift 6; we manage thread-safety via its internal serial queue.
 public final class CoolMyMacClient: @unchecked Sendable {
 
-    private let connection: NSXPCConnection
+    private var _connection: NSXPCConnection?
+    private let lock = NSLock()
 
-    public init() {
-        connection = NSXPCConnection(machServiceName: CoolMyMacXPCServiceName, options: [])
-        connection.remoteObjectInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
-        connection.resume()
+    private var connection: NSXPCConnection {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let conn = _connection {
+            return conn
+        }
+
+        let newConn = NSXPCConnection(machServiceName: CoolMyMacXPCServiceName, options: [])
+        newConn.remoteObjectInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
+        
+        // If launchd kills the daemon or it crashes, safely nil out the reference
+        // so the next XPC call automatically spawns a fresh connection pipeline.
+        newConn.interruptionHandler = { [weak self] in
+            self?.clearConnection()
+        }
+        newConn.invalidationHandler = { [weak self] in
+            self?.clearConnection()
+        }
+        
+        newConn.resume()
+        _connection = newConn
+        return newConn
     }
 
+    public init() {}
+
     deinit {
-        connection.invalidate()
+        _connection?.invalidate()
+    }
+
+    private func clearConnection() {
+        lock.lock()
+        defer { lock.unlock() }
+        _connection = nil
     }
 
     // MARK: - Private helper
@@ -67,6 +95,10 @@ public final class CoolMyMacClient: @unchecked Sendable {
     public func listProfiles() async throws -> [String] {
         try await xpcCall { proxy, reply in proxy.listProfiles(withReply: reply) }
     }
+    
+    public func getCustomProfiles() async throws -> [FanProfile] {
+        try await xpcCall { proxy, reply in proxy.getCustomProfiles(withReply: reply) }
+    }
 
     public func setActiveProfile(_ name: String) async throws {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
@@ -112,19 +144,6 @@ public final class CoolMyMacClient: @unchecked Sendable {
         (try? await daemonVersion()) != nil
     }
 
-    public func daemonVersion() async throws -> String {
-        try await withCheckedThrowingContinuation { cont in
-            var hasResumed = false
-            guard let proxy = getProxy(errorHandler: { error in
-                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
-            }) else { return }
-            
-            proxy.daemonVersion { version in
-                if !hasResumed { hasResumed = true; cont.resume(returning: version) }
-            }
-        }
-    }
-    
     public func setUpdateInterval(_ interval: Double) async throws {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             var hasResumed = false
@@ -147,6 +166,48 @@ public final class CoolMyMacClient: @unchecked Sendable {
             
             proxy.getUpdateInterval { interval, error in
                 if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume(returning: interval) } }
+            }
+        }
+    }
+
+    public func setActiveSensors(_ groups: [SensorGroup]) async throws {
+        let strings = groups.map(\.rawValue)
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.setActiveSensors(strings) { error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume() } }
+            }
+        }
+    }
+
+    public func getActiveSensors() async throws -> [SensorGroup] {
+        let strings: [String] = try await withCheckedThrowingContinuation { cont in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.getActiveSensors { strings, error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume(returning: strings) }
+                }
+            }
+        }
+        return strings.compactMap(SensorGroup.init(rawValue:))
+    }
+
+    public func daemonVersion() async throws -> String {
+        try await withCheckedThrowingContinuation { cont in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.daemonVersion { version in
+                if !hasResumed { hasResumed = true; cont.resume(returning: version) }
             }
         }
     }

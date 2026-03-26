@@ -3,6 +3,7 @@
 
 import SwiftUI
 import SMCKit
+import ServiceManagement
 
 @main
 struct CoolMyMacApp: App {
@@ -18,6 +19,14 @@ struct CoolMyMacApp: App {
             for app in apps where app.processIdentifier != currentPID {
                 app.terminate()
             }
+        }
+        
+        // Defaults: Open at login on first launch
+        let hasLaunchedBefore = UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
+        if !hasLaunchedBefore {
+            UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+            UserDefaults.standard.set(true, forKey: "openAtLogin")
+            try? ServiceManagement.SMAppService.mainApp.register()
         }
     }
 

@@ -8,6 +8,7 @@ struct MenuBarIconView: View {
 
     var state: AppState
     @AppStorage("decimalResolution") private var decimalResolution: Int = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     private static let minTemp = 60.0
     private static let maxTemp = 90.0
@@ -47,6 +48,9 @@ struct MenuBarIconView: View {
         let t = max(0, min(1, (temp - Self.minTemp) / (Self.maxTemp - Self.minTemp)))
         // Hue: 0.33 = green, 0.0 = red. Shift linearly.
         let hue = 0.33 * (1.0 - t)
-        return Color(hue: hue, saturation: 0.9, brightness: 0.85)
+        // Ensure high contrast: darker in light mode, brighter in dark mode
+        let brightness = colorScheme == .dark ? 0.95 : 0.65
+        let saturation = colorScheme == .dark ? 0.85 : 1.0
+        return Color(hue: hue, saturation: saturation, brightness: brightness)
     }
 }

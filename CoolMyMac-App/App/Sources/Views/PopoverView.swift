@@ -29,16 +29,13 @@ struct PopoverView: View {
                     .background(Color.blue.opacity(0.15), in: Capsule())
                     .foregroundStyle(.blue)
                 // Gear → Preferences
-                Button {
+                HoverableIconButton(systemName: "gearshape", helpText: "Open Preferences") {
                     openWindow(id: "preferences")
                     NSApp.activate(ignoringOtherApps: true)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
+                    for window in NSApp.windows where window.identifier?.rawValue == "preferences" {
+                        window.makeKeyAndOrderFront(nil)
+                    }
                 }
-                .buttonStyle(.plain)
-                .help("Open Preferences")
             }
             .padding(.horizontal, 14)
             .padding(.top, 12)
@@ -63,6 +60,17 @@ struct PopoverView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
+            } else if state.daemonStatus == .installed {
+                HStack {
+                    Image(systemName: "leaf.fill")
+                        .foregroundStyle(.green)
+                    Text("Passive Cooling")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
             }
 
             // MARK: 4. Preset Picker
@@ -81,21 +89,10 @@ struct PopoverView: View {
 
             // MARK: 6. Quit Button
             Divider().opacity(0.5)
-            Button {
+            HoverableRowButton(title: "Quit CoolMyMac", shortcut: "⌘Q") {
                 NSApplication.shared.terminate(nil)
-            } label: {
-                HStack {
-                    Text("Quit CoolMyMac")
-                        .font(.system(size: 12))
-                    Spacer()
-                    Text("⌘Q")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
             }
-            .buttonStyle(.plain)
+            .padding(.bottom, 6)
         }
         .frame(width: 320)
         .background(.regularMaterial)
@@ -110,6 +107,8 @@ struct TempTileView: View {
     let label: String
     let temp: Double?
     @AppStorage("decimalResolution") private var decimalResolution: Int = 0
+
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -133,9 +132,15 @@ struct TempTileView: View {
     }
 
     private func tempColor(_ c: Double) -> Color {
-        if c < 60 { return .primary }
-        if c < 80 { return .orange }
-        return .red
+        let minTemp = 50.0
+        let maxTemp = 90.0
+        let t = max(0, min(1, (c - minTemp) / (maxTemp - minTemp)))
+        // Hue: 0.33 = green, 0.0 = red.
+        let hue = 0.33 * (1.0 - t)
+        // Ensure high contrast: darker in light mode, brighter in dark mode
+        let brightness = colorScheme == .dark ? 0.95 : 0.65
+        let saturation = colorScheme == .dark ? 0.85 : 1.0
+        return Color(hue: hue, saturation: saturation, brightness: brightness)
     }
 }
 
@@ -210,6 +215,8 @@ struct PresetPill: View {
     let label: String
     let isActive: Bool
     var isCustom: Bool = false
+    
+    @State private var isHovered = false
 
     var body: some View {
         Text(label)
@@ -218,8 +225,8 @@ struct PresetPill: View {
             .padding(.vertical, 5)
             .background(
                 isActive
-                    ? AnyShapeStyle(Color.blue)
-                    : AnyShapeStyle(Color.primary.opacity(0.08)),
+                    ? AnyShapeStyle(Color.blue.opacity(isHovered ? 0.8 : 1.0))
+                    : AnyShapeStyle(Color.primary.opacity(isHovered ? 0.15 : 0.08)),
                 in: Capsule()
             )
             .foregroundStyle(isActive ? .white : .primary)
@@ -228,7 +235,10 @@ struct PresetPill: View {
                     ? Capsule().stroke(Color.blue.opacity(0.4), lineWidth: 1)
                     : nil
             )
+            .animation(.easeInOut(duration: 0.1), value: isHovered)
             .animation(.easeInOut(duration: 0.15), value: isActive)
+            .onHover { isHovered = $0 }
+            .contentShape(Capsule())
     }
 }
 
@@ -249,34 +259,25 @@ struct DaemonWarningBar: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.primary)
                 Spacer()
-                Button("Open Settings") {
+                HoverableTextButton(title: "Open Settings") {
                     DaemonManager.shared.openSystemSettingsForApproval()
                 }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.blue)
             } else if status == .unreachable {
                 Text("Daemon disconnected.")
                     .font(.system(size: 11))
                     .foregroundStyle(.primary)
                 Spacer()
-                Button("Restart") {
+                HoverableTextButton(title: "Restart") {
                     Task { try? await DaemonManager.shared.repairDaemon() }
                 }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.blue)
             } else {
                 Text("Fan control is inactive.")
                     .font(.system(size: 11))
                     .foregroundStyle(.primary)
                 Spacer()
-                Button("Install Daemon") {
+                HoverableTextButton(title: "Install Daemon") {
                     Task { try? await DaemonManager.shared.installDaemon() }
                 }
-                .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.blue)
             }
         }
         .padding(10)
@@ -290,3 +291,74 @@ struct DaemonWarningBar: View {
 
 // MARK: - FanProfile Identifiable
 extension FanProfile: @retroactive Identifiable {}
+
+// MARK: - Hover Components
+
+struct HoverableRowButton: View {
+    let title: String
+    let shortcut: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(isHovered ? Color.white : Color.primary)
+                Spacer()
+                Text(shortcut)
+                    .font(.system(size: 11))
+                    .foregroundStyle(isHovered ? AnyShapeStyle(Color.white.opacity(0.8)) : AnyShapeStyle(.tertiary))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(isHovered ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+            .padding(.horizontal, 4) // Add slight margin so the highlight doesn't bleed to the very edge, mimicking macOS 11+
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+struct HoverableTextButton: View {
+    let title: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .underline(isHovered)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.blue)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .contentShape(Rectangle())
+    }
+}
+
+struct HoverableIconButton: View {
+    let systemName: String
+    let helpText: String
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 13))
+                .foregroundStyle(isHovered ? .primary : .secondary)
+                .background(
+                    isHovered ? Color.primary.opacity(0.1) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 4)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(helpText)
+        .onHover { isHovered = $0 }
+        .contentShape(Rectangle())
+    }
+}

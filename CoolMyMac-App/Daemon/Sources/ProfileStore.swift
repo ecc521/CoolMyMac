@@ -13,6 +13,9 @@ final class ProfileStore: @unchecked Sendable {
     static let shared = ProfileStore()
 
     private let profilesURL: URL
+    private let cacheLock = NSLock()
+    private var profileCache: [String: FanProfile] = [:]
+    private var _cachedActiveProfileID: String?
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .localDomainMask).first
@@ -25,10 +28,29 @@ final class ProfileStore: @unchecked Sendable {
 
     private var activeProfileID: String {
         get {
-            UserDefaults(suiteName: "com.coolmymac.daemon")?.string(forKey: "activeProfileID") ?? "balanced"
+            cacheLock.lock()
+            if let cached = _cachedActiveProfileID {
+                cacheLock.unlock()
+                return cached
+            }
+            cacheLock.unlock()
+            
+            let txtURL = profilesURL.deletingLastPathComponent().appendingPathComponent("active_profile.txt")
+            let disk = (try? String(contentsOf: txtURL, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "balanced"
+            let finalDisk = disk.isEmpty ? "balanced" : disk
+            
+            cacheLock.lock()
+            _cachedActiveProfileID = finalDisk
+            cacheLock.unlock()
+            return finalDisk
         }
         set {
-            UserDefaults(suiteName: "com.coolmymac.daemon")?.set(newValue, forKey: "activeProfileID")
+            cacheLock.lock()
+            _cachedActiveProfileID = newValue
+            cacheLock.unlock()
+            
+            let txtURL = profilesURL.deletingLastPathComponent().appendingPathComponent("active_profile.txt")
+            try? newValue.write(to: txtURL, atomically: true, encoding: .utf8)
         }
     }
 
@@ -52,8 +74,24 @@ final class ProfileStore: @unchecked Sendable {
         if let builtin = FanProfile.allBuiltIn.first(where: { $0.id == id }) {
             return builtin
         }
-        // Load from disk
-        return loadCustomProfile(id: id)
+        
+        // Fast path: memory cache
+        cacheLock.lock()
+        if let cached = profileCache[id] {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+
+        // Slow path: load from disk and cache
+        if let loaded = loadCustomProfile(id: id) {
+            cacheLock.lock()
+            profileCache[id] = loaded
+            cacheLock.unlock()
+            return loaded
+        }
+        
+        return nil
     }
 
     func listAllProfileIDs() -> [String] {
@@ -72,6 +110,12 @@ final class ProfileStore: @unchecked Sendable {
         let data = try JSONEncoder().encode(profile)
         let url = profileURL(for: profile.id)
         try data.write(to: url, options: .atomic)
+        
+        // Update cache synchronously
+        cacheLock.lock()
+        profileCache[profile.id] = profile
+        cacheLock.unlock()
+        
         profileLogger.info("Saved custom profile '\(profile.id, privacy: .public)'")
     }
 
@@ -85,6 +129,11 @@ final class ProfileStore: @unchecked Sendable {
             throw ProfileStoreError.profileNotFound(id)
         }
         try FileManager.default.removeItem(at: url)
+        
+        cacheLock.lock()
+        profileCache.removeValue(forKey: id)
+        cacheLock.unlock()
+        
         // If we just deleted the active profile, fall back to balanced
         if activeProfileID == id { activeProfileID = "balanced" }
         profileLogger.info("Deleted custom profile '\(id, privacy: .public)'")

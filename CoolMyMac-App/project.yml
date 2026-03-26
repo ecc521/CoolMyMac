@@ -77,7 +77,7 @@ schemes:
     build:
       targets:
         CoolMyMac: all
-        CoolMyMac-Daemon: [build]
+        CoolMyMac-Daemon: all
 
   CoolMyMac-Daemon:
     build:

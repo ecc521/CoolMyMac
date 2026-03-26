@@ -6,6 +6,7 @@ import Foundation
 import SMCKit
 import Observation
 import os.log
+import ServiceManagement
 
 private let logger = Logger(subsystem: "com.coolmymac.app", category: "AppState")
 
@@ -18,6 +19,7 @@ final class AppState {
     var sensors: [SensorReading] = []
     var fans: [FanStatus] = []
     var activeProfile: FanProfile = .balanced
+    var customProfiles: [FanProfile] = []
 
     // Derived: CPU and GPU temps for the popover tiles
     var cpuTemp: Double? { sensors.filter { $0.group == .cpuCore }.map(\.celsius).max() }
@@ -38,7 +40,7 @@ final class AppState {
 
     var iconDisplayMode: IconDisplayMode = {
         let saved = UserDefaults.standard.string(forKey: "iconDisplayMode") ?? ""
-        return IconDisplayMode(rawValue: saved) ?? .iconOnly
+        return IconDisplayMode(rawValue: saved) ?? .iconAndTemp
     }() {
         didSet { defaults.set(iconDisplayMode.rawValue, forKey: "iconDisplayMode") }
     }
@@ -48,15 +50,41 @@ final class AppState {
         set { defaults.set(newValue, forKey: "dynamicIconEnabled") }
     }
     
+    var launchAtLogin: Bool {
+        get { SMAppService.mainApp.status == .enabled }
+        set {
+            do {
+                if newValue {
+                    if SMAppService.mainApp.status != .enabled {
+                        try SMAppService.mainApp.register()
+                    }
+                } else {
+                    if SMAppService.mainApp.status == .enabled {
+                        try SMAppService.mainApp.unregister()
+                    }
+                }
+            } catch {
+                logger.error("Failed to toggle Launch at Login: \(error.localizedDescription)")
+            }
+        }
+    }
+    
     var updateInterval: Double = {
         let saved = UserDefaults.standard.double(forKey: "updateInterval")
-        return saved == 0 ? 2.0 : saved
+        return saved == 0 ? 1.0 : saved
     }() {
         didSet {
             defaults.set(updateInterval, forKey: "updateInterval")
             Task { try? await client.setUpdateInterval(updateInterval) }
             stopRefreshing()
             startRefreshing()
+        }
+    }
+
+    var activeSensors: Set<SensorGroup> = [.cpuCore, .gpu] {
+        didSet {
+            let array = Array(activeSensors)
+            Task { try? await client.setActiveSensors(array) }
         }
     }
 
@@ -107,10 +135,14 @@ final class AppState {
                 async let s = client.readSensors()
                 async let f = client.readFans()
                 async let p = client.activeProfile()
+                async let a = client.getActiveSensors()
+                async let c = client.getCustomProfiles()
                 
                 sensors = (try? await s) ?? sensors
                 fans = (try? await f) ?? fans
                 activeProfile = (try? await p) ?? activeProfile
+                activeSensors = Set((try? await a) ?? [.cpuCore, .gpu])
+                customProfiles = (try? await c) ?? customProfiles
             } else {
                 let fallback = await Task.detached {
                     do {
