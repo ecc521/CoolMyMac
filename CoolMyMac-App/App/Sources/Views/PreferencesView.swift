@@ -102,12 +102,11 @@ struct GeneralPrefsView: View {
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
                         .controlSize(.small)
-                    } else if state.daemonStatus == .installed {
-                        Button("Repair Daemon") {
+                    } else {
+                        Button("Reload") {
                             Task { try? await DaemonManager.shared.repairDaemon() }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.orange)
+                        .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
                 }
