@@ -220,14 +220,21 @@ final class AppleSMC: SMCProvider {
     }
 
     func setFanMinRPM(index: Int, rpm: Int) throws {
-        try setFanManualMode(index: index, manual: true)
-        let key = kFanTargetRPM(index)
+        // Modern SMCs often reject F0Tg writes, even with F0Md set.
+        // Instead, we raise the F0Mn (minimum RPM floor), which is safer and usually widely allowed.
+        // Apple's loop will then clamp its target to be at least this minimum.
+        let key = kFanMinRPM(index)
         let bytes = doubleToSP78(Double(rpm))
         try writeKey(key, bytes: bytes, dataType: "sp78", dataSize: 2)
     }
 
     func resetFan(index: Int) throws {
-        try setFanManualMode(index: index, manual: false)
+        // To reset the fan, we drop the minimum floor back to 0. 
+        // The SMC will automatically clamp 0 back up to its physical hardware minimum limitation.
+        let key = kFanMinRPM(index)
+        let bytes = doubleToSP78(0.0)
+        try? writeKey(key, bytes: bytes, dataType: "sp78", dataSize: 2)
+        try? setFanManualMode(index: index, manual: false)
     }
 
     private func setFanManualMode(index: Int, manual: Bool) throws {
