@@ -47,10 +47,12 @@ Temporary Items
 
 # Debug scratch files (should not be committed)
 debug_*.swift
-app.log
+test_*.swift
+*.log
 cli_out.txt
 
 # Generated Xcode Configs (xcodegen)
 *.xcodeproj
 *.xcworkspace
 implementation_plan.md
+codebase_audit_final.md

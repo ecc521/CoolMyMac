@@ -343,8 +343,12 @@ struct BuiltInProfileDetailView: View {
                     Text(profile.settings.aggregation.rawValue).font(.system(size: 12))
                 }
                 GridRow {
-                    Text("Smoothing").foregroundStyle(.secondary).font(.system(size: 12))
-                    Text("\(profile.settings.smoothingWindowSeconds, specifier: "%.0f")s").font(.system(size: 12))
+                    Text("Spin Up Smoothing").foregroundStyle(.secondary).font(.system(size: 12))
+                    Text("\(profile.settings.spinUpTime, specifier: "%.1f")s").font(.system(size: 12))
+                }
+                GridRow {
+                    Text("Spin Down Smoothing").foregroundStyle(.secondary).font(.system(size: 12))
+                    Text("\(profile.settings.spinDownTime, specifier: "%.1f")s").font(.system(size: 12))
                 }
             }
 
@@ -385,6 +389,8 @@ struct CustomProfileDetailView: View {
 
     @State private var displayName: String
     @State private var editablePoints: [EditablePoint]
+    @State private var spinUpTime: Double
+    @State private var spinDownTime: Double
 
     struct EditablePoint: Identifiable {
         let id = UUID()
@@ -398,10 +404,14 @@ struct CustomProfileDetailView: View {
         self._displayName = State(initialValue: profile.displayName)
         let mapped = profile.curve.points.map { EditablePoint(celsius: $0.celsius, rpmPercentage: $0.rpmPercentage) }
         self._editablePoints = State(initialValue: mapped)
+        self._spinUpTime = State(initialValue: profile.settings.spinUpTime)
+        self._spinDownTime = State(initialValue: profile.settings.spinDownTime)
     }
 
     private var hasChanges: Bool {
         if displayName != profile.displayName { return true }
+        if spinUpTime != profile.settings.spinUpTime { return true }
+        if spinDownTime != profile.settings.spinDownTime { return true }
         if editablePoints.count != profile.curve.points.count { return true }
         for (i, ep) in editablePoints.enumerated() {
             let op = profile.curve.points[i]
@@ -424,12 +434,18 @@ struct CustomProfileDetailView: View {
                     Button("Save") {
                         let sorted = editablePoints.sorted(by: { $0.celsius < $1.celsius })
                         let newPoints = sorted.map { CurvePoint(celsius: $0.celsius, rpmPercentage: $0.rpmPercentage) }
+                        let newSettings = ProfileSettings(
+                            sources: profile.settings.sources,
+                            aggregation: profile.settings.aggregation,
+                            spinUpTime: spinUpTime,
+                            spinDownTime: spinDownTime
+                        )
                         let newProfile = FanProfile(
                             id: profile.id,
                             displayName: displayName,
                             isBuiltIn: false,
                             curve: FanCurve(points: newPoints),
-                            settings: profile.settings
+                            settings: newSettings
                         )
                         Task { try? await state.client.saveCustomProfile(newProfile); state.startRefreshing() }
                     }
@@ -445,6 +461,27 @@ struct CustomProfileDetailView: View {
                 .tint(.blue)
                 .disabled(state.activeProfile.id == profile.id || hasChanges)
                 .controlSize(.small)
+            }
+            
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                GridRow {
+                    Text("Spin Up Time").foregroundStyle(.secondary).font(.system(size: 12))
+                    HStack {
+                        TextField("Sec", value: $spinUpTime, format: .number)
+                            .textFieldStyle(.roundedBorder).frame(width: 40)
+                            .font(.system(size: 12))
+                        Text("s").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                GridRow {
+                    Text("Spin Down Time").foregroundStyle(.secondary).font(.system(size: 12))
+                    HStack {
+                        TextField("Sec", value: $spinDownTime, format: .number)
+                            .textFieldStyle(.roundedBorder).frame(width: 40)
+                            .font(.system(size: 12))
+                        Text("s").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
             }
 
             Text("Fan Curve")

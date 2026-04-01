@@ -5,18 +5,19 @@ import Foundation
 
 public extension FanProfile {
 
-    // MARK: - Quiet
+    // MARK: - System
 
-    /// Quiet mode: no override. Apple's thermal management stays in full control.
-    static let quiet = FanProfile(
-        id: "quiet",
-        displayName: "Quiet",
+    /// System mode: no override. Apple's thermal management stays in full control.
+    static let system = FanProfile(
+        id: "system",
+        displayName: "System",
         isBuiltIn: true,
         curve: FanCurve(points: []),  // No points = no control
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            smoothingWindowSeconds: 5.0
+            spinUpTime: 0.0,
+            spinDownTime: 5.0
         )
     )
 
@@ -39,7 +40,8 @@ public extension FanProfile {
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            smoothingWindowSeconds: 5.0
+            spinUpTime: 0.0,
+            spinDownTime: 5.0
         )
     )
 
@@ -60,7 +62,8 @@ public extension FanProfile {
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            smoothingWindowSeconds: 3.0  // Faster response time
+            spinUpTime: 0.0,
+            spinDownTime: 3.0  // Faster response time
         )
     )
 
@@ -78,11 +81,12 @@ public extension FanProfile {
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            smoothingWindowSeconds: 1.0
+            spinUpTime: 0.0,
+            spinDownTime: 1.0
         )
     )
 
     // MARK: - All Built-ins
 
-    static let allBuiltIn: [FanProfile] = [.quiet, .balanced, .performance, .max]
+    static let allBuiltIn: [FanProfile] = [.system, .balanced, .performance, .max]
 }

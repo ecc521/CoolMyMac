@@ -66,4 +66,4 @@ import Foundation
 }
 
 /// Mach service name for XPC — must match the daemon's Info.plist MachServices entry.
-public let CoolMyMacXPCServiceName = "com.coolmymac.daemon"
+public let CoolMyMacXPCServiceName = "com.coolmymac.app.daemon"

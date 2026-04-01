@@ -163,7 +163,7 @@ final class AppState {
                 
                 if !fallback.0.isEmpty { sensors = fallback.0 }
                 if !fallback.1.isEmpty { fans = fallback.1 }
-                activeProfile = .quiet
+                activeProfile = .system
             }
             logger.info("Refresh complete. sensors=\(self.sensors.count) fans=\(self.fans.count)")
             isRefreshing = false

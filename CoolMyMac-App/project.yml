@@ -24,11 +24,12 @@ targets:
       - package: SMCKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.coolmymac.daemon
+        PRODUCT_BUNDLE_IDENTIFIER: com.coolmymac.app.daemon
         INFOPLIST_FILE: Daemon/Info.plist
         CODE_SIGN_ENTITLEMENTS: Daemon/CoolMyMacDaemon.entitlements
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "Developer ID Application"
+        DEVELOPMENT_TEAM: "G24X82SAVJ"
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_VERSION: 6.0
         MACOSX_DEPLOYMENT_TARGET: "15.0"
@@ -46,20 +47,13 @@ targets:
     dependencies:
       - package: SMCKit
       - target: CoolMyMac-Daemon
-        embed: false   # We copy it manually into Contents/Library/LaunchDaemons
-    postBuildScripts:
-      - name: Embed Daemon in App Bundle
-        script: |
-          DAEMON_BINARY="${BUILT_PRODUCTS_DIR}/CoolMyMac-Daemon"
-          DAEMON_DEST="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Library/LaunchDaemons"
-          PLIST_SRC="${SRCROOT}/Resources/com.coolmymac.daemon.plist"
-
-          mkdir -p "${DAEMON_DEST}"
-          cp "${DAEMON_BINARY}" "${DAEMON_DEST}/CoolMyMac-Daemon"
-          cp "${PLIST_SRC}" "${DAEMON_DEST}/com.coolmymac.daemon.plist"
-
-          echo "✅ Daemon embedded at ${DAEMON_DEST}"
-        basedOnDependencyAnalysis: false
+        embed: false   # Natively embedded via copyFiles phase below
+    copyFiles:
+      - destination: wrapper
+        subpath: Contents/Library/LaunchDaemons
+        files:
+          - ${BUILT_PRODUCTS_DIR}/CoolMyMac-Daemon
+          - Resources/com.coolmymac.app.daemon.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.coolmymac.app
@@ -67,6 +61,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: App/CoolMyMac.entitlements
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "Developer ID Application"
+        DEVELOPMENT_TEAM: "G24X82SAVJ"
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_VERSION: 6.0
         MACOSX_DEPLOYMENT_TARGET: "15.0"

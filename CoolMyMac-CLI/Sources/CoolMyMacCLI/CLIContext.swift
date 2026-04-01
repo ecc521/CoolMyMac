@@ -87,8 +87,8 @@ enum CLIContext {
     static func resetAllFans() async -> Result<Void, CLIContextError> {
         let xpc = CoolMyMacClient()
         do {
-            // Reset = set Quiet profile
-            try await xpc.setActiveProfile("quiet")
+            // Reset = set System profile
+            try await xpc.setActiveProfile("system")
             return .success(())
         } catch {
             printDaemonFallbackMessage()

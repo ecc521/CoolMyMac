@@ -111,11 +111,12 @@ final class ThermalController: @unchecked Sendable {
             let settings = ProfileSettings(
                 sources: globalSources.isEmpty ? [.cpuCore, .gpu] : globalSources,
                 aggregation: profile.settings.aggregation,
-                smoothingWindowSeconds: profile.settings.smoothingWindowSeconds
+                spinUpTime: profile.settings.spinUpTime,
+                spinDownTime: profile.settings.spinDownTime
             )
 
             let drivingTemp = (try? smc.drivingTemperature(for: settings)) ?? 0.0
-            let smoothedTemp = smooth(sample: drivingTemp, windowSeconds: profile.settings.smoothingWindowSeconds)
+            let smoothedTemp = smooth(sample: drivingTemp, settings: profile.settings)
             let targetPercentage = profile.curve.targetPercentage(for: smoothedTemp)
 
             thermalLogger.debug("Driving temp: \(drivingTemp, privacy: .public)°C smoothed: \(smoothedTemp, privacy: .public)°C → target: \(Int(targetPercentage * 100), privacy: .public)%")
@@ -125,11 +126,19 @@ final class ThermalController: @unchecked Sendable {
 
             // Apply calculated RPM per fan
             for fan in allFans {
-                let range = Double(fan.maxRPM - fan.minRPM)
-                let targetRPM = Int(Double(fan.minRPM) + (range * targetPercentage))
-                try smc.setFanMinRPM(index: fan.id, rpm: targetRPM)
+                if profile.curve.points.isEmpty {
+                    // Yield control back to Apple SMC
+                    if fansAreManaged {
+                        try? smc.resetFan(index: fan.id)
+                    }
+                } else {
+                    let range = Double(fan.maxRPM - fan.minRPM)
+                    let targetRPM = Int(Double(fan.minRPM) + (range * targetPercentage))
+                    try smc.setFanMinRPM(index: fan.id, rpm: targetRPM)
+                }
             }
-            fansAreManaged = true  // #4: mark fans as under CoolMyMac control
+            
+            fansAreManaged = !profile.curve.points.isEmpty
 
             // Read back and publish status for App/CLI UI updates
             _latestFanStatus = allFans.map { fan in
@@ -146,14 +155,29 @@ final class ThermalController: @unchecked Sendable {
 
     // MARK: - Temperature Aggregation (delegated to SMCController — see #10 DRY fix)
 
-    // MARK: - Smoothing (rolling average over N samples)
+    // MARK: - Smoothing
 
-    private func smooth(sample: Double, windowSeconds: Double) -> Double {
+    private func smooth(sample: Double, settings: ProfileSettings) -> Double {
+        let currentAverage = temperatureSamples.isEmpty 
+            ? sample 
+            : temperatureSamples.reduce(0, +) / Double(temperatureSamples.count)
+            
+        let isSpinUp = sample > currentAverage
+        let windowSeconds = isSpinUp ? settings.spinUpTime : settings.spinDownTime
         let windowSamples = max(1, Int(windowSeconds / pollInterval))
-        temperatureSamples.append(sample)
-        if temperatureSamples.count > windowSamples {
-            temperatureSamples.removeFirst(temperatureSamples.count - windowSamples)
+        
+        if isSpinUp && windowSamples <= 1 {
+            // Fast spin-up: If the new reading is hotter than the average,
+            // fast-forward the buffer to immediately apply the highest temperature.
+            temperatureSamples = Array(repeating: sample, count: windowSamples)
+        } else {
+            // Smoothly average the changes
+            temperatureSamples.append(sample)
+            if temperatureSamples.count > windowSamples {
+                temperatureSamples.removeFirst(temperatureSamples.count - windowSamples)
+            }
         }
+        
         return temperatureSamples.reduce(0, +) / Double(temperatureSamples.count)
     }
 

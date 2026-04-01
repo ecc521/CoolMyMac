@@ -7,7 +7,7 @@ import Foundation
 struct ResetCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "reset",
-        abstract: "Reset all fans to Apple's automatic control (sets profile to Quiet)"
+        abstract: "Reset all fans to Apple's automatic control (sets profile to System)"
     )
 
     @Flag(name: .shortAndLong, help: "Skip confirmation prompt")
@@ -32,7 +32,7 @@ struct ResetCommand: AsyncParsableCommand {
             throw ExitCode.failure
 
         case .success:
-            print("✅ All fans reset to Quiet (Apple thermal management)")
+            print("✅ All fans reset to System (Apple thermal management)")
         }
     }
 }

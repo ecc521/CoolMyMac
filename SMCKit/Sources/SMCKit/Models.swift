@@ -119,17 +119,49 @@ public struct ProfileSettings: Codable, Sendable {
     public let sources: [SensorGroup]
     /// How to reduce multiple sensor readings to one driving temperature.
     public let aggregation: AggregationMode
-    /// Rolling-average window in seconds to prevent RPM hunting.
-    public let smoothingWindowSeconds: Double
+    public let spinUpTime: Double
+    public let spinDownTime: Double
 
     public init(
         sources: [SensorGroup] = [.cpuCore, .gpu],
         aggregation: AggregationMode = .max,
-        smoothingWindowSeconds: Double = 5.0
+        spinUpTime: Double = 0.0,
+        spinDownTime: Double = 5.0
     ) {
         self.sources = sources
         self.aggregation = aggregation
-        self.smoothingWindowSeconds = smoothingWindowSeconds
+        self.spinUpTime = spinUpTime
+        self.spinDownTime = spinDownTime
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.sources = try container.decodeIfPresent([SensorGroup].self, forKey: .sources) ?? [.cpuCore, .gpu]
+        self.aggregation = try container.decodeIfPresent(AggregationMode.self, forKey: .aggregation) ?? .max
+        
+        // Backwards compatibility for older JSON profiles
+        if let oldSmoothing = try? container.decodeIfPresent(Double.self, forKey: CodingKeys(stringValue: "smoothingWindowSeconds")!) {
+            self.spinUpTime = 0.0
+            self.spinDownTime = oldSmoothing
+        } else {
+            self.spinUpTime = try container.decodeIfPresent(Double.self, forKey: .spinUpTime) ?? 0.0
+            self.spinDownTime = try container.decodeIfPresent(Double.self, forKey: .spinDownTime) ?? 5.0
+        }
+    }
+
+    private struct CodingKeys: CodingKey {
+        var stringValue: String
+        init?(stringValue: String) { self.stringValue = stringValue }
+        var intValue: Int?
+        init?(intValue: Int) { return nil }
+
+        static let sources = CodingKeys(stringValue: "sources")!
+        static let aggregation = CodingKeys(stringValue: "aggregation")!
+        // New keys
+        static let spinUpTime = CodingKeys(stringValue: "spinUpTime")!
+        static let spinDownTime = CodingKeys(stringValue: "spinDownTime")!
+        // Old key
+        static let smoothingWindowSeconds = CodingKeys(stringValue: "smoothingWindowSeconds")!
     }
 }
 

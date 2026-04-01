@@ -4,7 +4,7 @@
 <dict>
     <!-- Label must exactly match the bundle identifier -->
     <key>Label</key>
-    <string>com.coolmymac.daemon</string>
+    <string>com.coolmymac.app.daemon</string>
 
     <!-- Path to the daemon binary inside the App bundle.
          SMAppService resolves this relative to the App bundle root. -->
@@ -14,7 +14,7 @@
     <!-- XPC Mach service name — must match CoolMyMacXPCServiceName -->
     <key>MachServices</key>
     <dict>
-        <key>com.coolmymac.daemon</key>
+        <key>com.coolmymac.app.daemon</key>
         <true/>
     </dict>
 

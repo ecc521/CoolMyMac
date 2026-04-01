@@ -244,11 +244,14 @@ final class AppleSMC: SMCProvider {
     }
 
     func resetFan(index: Int) throws {
-        // Reset both Target and Minimum down to 0, which Apple's loop will snap up to hardware defaults.
-        try? writeRPMKey(kFanTargetRPM(index), rpm: 0.0)
-        try? writeRPMKey(kFanMinRPM(index), rpm: 0.0)
+        // Read the currently spinning RPM so we can hand it off smoothly.
+        // If we forcefully write 0.0, the fans will physically slam their brakes 
+        // for 1-2 seconds until Apple's automatic thermal loop wakes up to recalculate.
+        let actualRPM = (try? readRPMKey(kFanActualRPM(index))) ?? 0.0
         
-        // Relinquish the manual lock.
+        try? writeRPMKey(kFanTargetRPM(index), rpm: actualRPM)
+        
+        // Relinquish the manual lock. Apple's loop will seamlessly take over from the actualRPM.
         try? setFanManualMode(index: index, manual: false)
     }
 
