@@ -40,7 +40,7 @@ public extension FanProfile {
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            spinUpTime: 3.0,
+            spinUpTime: 5.0,
             spinDownTime: 10.0
         )
     )
@@ -62,7 +62,7 @@ public extension FanProfile {
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            spinUpTime: 1.0,
+            spinUpTime: 3.0,
             spinDownTime: 5.0
         )
     )
