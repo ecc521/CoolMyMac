@@ -19,7 +19,6 @@ struct CoolMyMacCLI: AsyncParsableCommand {
             FansCommand.self,
             ProfileCommand.self,
             ResetCommand.self,
-        ],
-        defaultSubcommand: TempsCommand.self
+        ]
     )
 }
