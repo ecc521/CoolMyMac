@@ -66,7 +66,7 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
     // MARK: - Private helpers
     
     nonisolated(unsafe) static var activeConnectionCount = 0
-    nonisolated(unsafe) static let connectionLock = NSLock()
+    static let connectionLock = NSLock()
 
     private func accept(_ connection: NSXPCConnection) -> Bool {
         connection.exportedInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
