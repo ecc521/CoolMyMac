@@ -1,5 +1,5 @@
 cask "coolmymac" do
-  version "1.0.1"
+  version "1.0.2"
   # You must update this sha256 to match the exact hash of your CoolMyMac.zip on each release. 
   # You can generate the hash by running `shasum -a 256 CoolMyMac.zip` in terminal.
   sha256 "REPLACE_WITH_ZIP_SHA256"
