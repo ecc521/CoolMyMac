@@ -66,6 +66,7 @@ struct PreferencesView: View {
 struct GeneralPrefsView: View {
 
     var state: AppState
+    @State private var isCLIInstalled: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -155,6 +156,39 @@ struct GeneralPrefsView: View {
                 .padding(4)
             }
             
+            GroupBox("Command Line Tool") {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("coolmymac")
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        Text("Control profiles and fans directly from the terminal.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    if isCLIInstalled {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text("Installed")
+                                .font(.system(size: 13))
+                        }
+                    } else {
+                        Button("Install CLI") {
+                            installCLI()
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+                .padding(4)
+            }
+            .onAppear {
+                checkCLIStatus()
+            }
+            
             GroupBox("Advanced") {
                 Form {
                     Picker("Update Interval:", selection: Binding(
@@ -207,6 +241,37 @@ struct GeneralPrefsView: View {
         case .requiresApproval: return "Approval required — click to re-grant"
         case .unreachable:      return "Daemon disconnected"
         case .unknown:          return "Status unknown"
+        }
+    }
+    
+    private func checkCLIStatus() {
+        let symlinkPath = "/usr/local/bin/coolmymac"
+        guard let destination = try? FileManager.default.destinationOfSymbolicLink(atPath: symlinkPath) else {
+            isCLIInstalled = false
+            return
+        }
+        guard let myExecPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac").path else {
+            isCLIInstalled = false
+            return
+        }
+        isCLIInstalled = (destination == myExecPath)
+    }
+    
+    private func installCLI() {
+        guard let execPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac").path else { return }
+        
+        let scriptSource = """
+        do shell script "mkdir -p /usr/local/bin && ln -sf \\"\(execPath)\\" /usr/local/bin/coolmymac" with administrator privileges
+        """
+        
+        var error: NSDictionary?
+        if let scriptObject = NSAppleScript(source: scriptSource) {
+            scriptObject.executeAndReturnError(&error)
+            if error == nil {
+                checkCLIStatus()
+            } else {
+                print("Failed to install CLI: \(String(describing: error))")
+            }
         }
     }
 }
