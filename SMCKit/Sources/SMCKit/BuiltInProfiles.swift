@@ -63,7 +63,7 @@ public extension FanProfile {
             sources: [.cpuCore, .gpu],
             aggregation: .max,
             spinUpTime: 3.0,
-            spinDownTime: 5.0
+            spinDownTime: 10.0
         )
     )
 
@@ -82,7 +82,7 @@ public extension FanProfile {
             sources: [.cpuCore, .gpu],
             aggregation: .max,
             spinUpTime: 0.0,
-            spinDownTime: 0.0
+            spinDownTime: 10.0
         )
     )
 
