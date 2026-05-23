@@ -337,20 +337,38 @@ struct ProfilesPrefsView: View {
                     Spacer(minLength: 0)
 
                     HStack {
-                        Button(action: { createNewProfile() }) { Image(systemName: "plus") }
-                            .buttonStyle(.plain)
-                        Button(action: { deleteSelectedProfile() }) { Image(systemName: "minus") }
-                            .buttonStyle(.plain)
-                            .disabled(selectedProfile?.isBuiltIn ?? true)
+                        Button(action: { createNewProfile() }) { 
+                            Image(systemName: "plus")
+                                .frame(width: 24, height: 24)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button(action: { deleteSelectedProfile() }) { 
+                            Image(systemName: "minus")
+                                .frame(width: 24, height: 24)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(selectedProfile?.isBuiltIn ?? true)
                             
                         Spacer()
                         
-                        Button(action: { moveProfile(direction: -1) }) { Image(systemName: "chevron.up") }
-                            .buttonStyle(.plain)
-                            .disabled(selectedProfile?.isBuiltIn ?? true)
-                        Button(action: { moveProfile(direction: 1) }) { Image(systemName: "chevron.down") }
-                            .buttonStyle(.plain)
-                            .disabled(selectedProfile?.isBuiltIn ?? true)
+                        Button(action: { moveProfile(direction: -1) }) { 
+                            Image(systemName: "chevron.up")
+                                .frame(width: 24, height: 24)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(selectedProfile?.isBuiltIn ?? true)
+
+                        Button(action: { moveProfile(direction: 1) }) { 
+                            Image(systemName: "chevron.down")
+                                .frame(width: 24, height: 24)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(selectedProfile?.isBuiltIn ?? true)
                     }
                     .padding(.top, 4)
                 }
@@ -396,7 +414,7 @@ struct ProfilesPrefsView: View {
         )
         Task {
             try? await state.client.saveCustomProfile(newProfile)
-            await MainActor.run { state.startRefreshing() }
+            await MainActor.run { state.refresh() }
             selectedProfile = newProfile
         }
     }
@@ -410,7 +428,7 @@ struct ProfilesPrefsView: View {
         Task {
             try? await state.client.deleteCustomProfile(id: p.id)
             await MainActor.run {
-                state.startRefreshing()
+                state.refresh()
             }
         }
     }
@@ -616,7 +634,7 @@ struct CustomProfileDetailView: View {
                         Task { 
                             try? await state.client.saveCustomProfile(newProfile)
                             await MainActor.run { 
-                                state.startRefreshing()
+                                state.refresh()
                                 onSave?(newProfile)
                             }
                         }
