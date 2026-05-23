@@ -194,7 +194,7 @@ struct PresetPickerView: View {
     var state: AppState
 
     // Built-in presets + up to 3 custom (only shown if defined)
-    private var customProfiles: [FanProfile] { [] }  // Phase 4: loaded from ProfileStore
+    private var customProfiles: [FanProfile] { state.customProfiles }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -203,21 +203,19 @@ struct PresetPickerView: View {
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
-            // Built-in presets
-            HStack(spacing: 6) {
-                ForEach(FanProfile.allBuiltIn) { profile in
-                    PresetPill(
-                        label: profile.displayName,
-                        isActive: state.activeProfile.id == profile.id
-                    )
-                    .onTapGesture { state.setProfile(profile) }
-                }
-            }
-
-            // Custom slots (only visible if custom profiles exist)
-            if !customProfiles.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(customProfiles.prefix(3)) { profile in
+                    // Built-in presets (System)
+                    ForEach(FanProfile.allBuiltIn) { profile in
+                        PresetPill(
+                            label: profile.displayName,
+                            isActive: state.activeProfile.id == profile.id
+                        )
+                        .onTapGesture { state.setProfile(profile) }
+                    }
+
+                    // Custom profiles
+                    ForEach(customProfiles) { profile in
                         PresetPill(
                             label: profile.displayName,
                             isActive: state.activeProfile.id == profile.id,

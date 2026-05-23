@@ -207,7 +207,14 @@ final class AppState {
                 let globalSensors = try? await client.getActiveSensors()
                 activeSensors = Set(globalSensors?.groups ?? [.cpuCore, .gpu])
                 excludedSensors = Set(globalSensors?.excludedSensors ?? [])
-                customProfiles = (try? await c) ?? customProfiles
+                let fetchedCustom = (try? await c) ?? customProfiles
+                let order = UserDefaults.standard.stringArray(forKey: "ProfileOrder") ?? []
+                customProfiles = fetchedCustom.sorted { a, b in
+                    let aIdx = order.firstIndex(of: a.id) ?? Int.max
+                    let bIdx = order.firstIndex(of: b.id) ?? Int.max
+                    if aIdx == bIdx { return a.id < b.id }
+                    return aIdx < bIdx
+                }
                 if let allow = try? await u { allowUnprivilegedCLI = allow }
             } else {
                 let fallback = await Task.detached {
@@ -249,6 +256,26 @@ final class AppState {
             
             try? await client.setActiveProfile(profile.id)
             activeProfile = profile
+        }
+    }
+    
+    // MARK: - Reordering
+    
+    func moveProfile(id: String, direction: Int) {
+        var currentOrder = customProfiles.map(\.id)
+        guard let index = currentOrder.firstIndex(of: id) else { return }
+        
+        let newIndex = index + direction
+        guard newIndex >= 0 && newIndex < currentOrder.count else { return }
+        
+        currentOrder.swapAt(index, newIndex)
+        UserDefaults.standard.set(currentOrder, forKey: "ProfileOrder")
+        
+        customProfiles.sort { a, b in
+            let aIdx = currentOrder.firstIndex(of: a.id) ?? Int.max
+            let bIdx = currentOrder.firstIndex(of: b.id) ?? Int.max
+            if aIdx == bIdx { return a.id < b.id }
+            return aIdx < bIdx
         }
     }
 }

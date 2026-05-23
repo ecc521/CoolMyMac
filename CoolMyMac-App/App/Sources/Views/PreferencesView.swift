@@ -268,6 +268,15 @@ struct ProfilesPrefsView: View {
                         Button(action: { deleteSelectedProfile() }) { Image(systemName: "minus") }
                             .buttonStyle(.plain)
                             .disabled(selectedProfile?.isBuiltIn ?? true)
+                            
+                        Spacer()
+                        
+                        Button(action: { moveProfile(direction: -1) }) { Image(systemName: "chevron.up") }
+                            .buttonStyle(.plain)
+                            .disabled(selectedProfile?.isBuiltIn ?? true)
+                        Button(action: { moveProfile(direction: 1) }) { Image(systemName: "chevron.down") }
+                            .buttonStyle(.plain)
+                            .disabled(selectedProfile?.isBuiltIn ?? true)
                     }
                     .padding(.top, 4)
                 }
@@ -288,6 +297,11 @@ struct ProfilesPrefsView: View {
                 }
             }
         }
+    }
+
+    private func moveProfile(direction: Int) {
+        guard let profile = selectedProfile, !profile.isBuiltIn else { return }
+        state.moveProfile(id: profile.id, direction: direction)
     }
 
     private func createNewProfile() {
@@ -790,8 +804,10 @@ struct AboutPrefsView: View {
                 .foregroundStyle(.blue)
             Text("CoolMyMac")
                 .font(.title.bold())
-            Text("Version 1.0.0")
-                .foregroundStyle(.secondary)
+            if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+                Text("Version \(appVersion)")
+                    .foregroundStyle(.secondary)
+            }
             Text("Advanced fan control for macOS 15+")
                 .foregroundStyle(.secondary)
                 .font(.system(size: 13))
