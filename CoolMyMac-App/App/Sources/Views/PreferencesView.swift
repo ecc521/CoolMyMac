@@ -280,6 +280,7 @@ struct ProfilesPrefsView: View {
                     }, onSave: { newProfile in
                         selectedProfile = newProfile
                     })
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
                     Text("Select a profile to view details")
                         .foregroundStyle(.tertiary)
