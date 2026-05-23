@@ -14,8 +14,8 @@ struct TempsCommand: AsyncParsableCommand {
     @Flag(name: .shortAndLong, help: "Show only sensors above a threshold (°C)")
     var hot: Bool = false
 
-    @Option(name: .long, help: "Minimum temperature threshold in °C (used with --hot)")
-    var threshold: Double = 60.0
+    @Option(name: .long, help: "Minimum temperature threshold in °C (implies --hot). Default is 60.0 when --hot is passed.")
+    var threshold: Double?
 
     @Flag(name: .shortAndLong, help: "Show all sensors including OTHER group")
     var all: Bool = false
@@ -33,7 +33,11 @@ struct TempsCommand: AsyncParsableCommand {
 
         case .success(let readings):
             var filtered = all ? readings : readings.filter { $0.group != .other }
-            if hot { filtered = filtered.filter { $0.value >= threshold } }
+            
+            let filterThreshold = threshold ?? (hot ? 60.0 : nil)
+            if let t = filterThreshold {
+                filtered = filtered.filter { $0.value >= t }
+            }
 
             if json {
                 let data = try JSONEncoder().encode(filtered)
