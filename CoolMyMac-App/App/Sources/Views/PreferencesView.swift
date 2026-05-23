@@ -223,38 +223,42 @@ struct ProfilesPrefsView: View {
             HStack(alignment: .top, spacing: 16) {
                 // Profile list
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(FanProfile.allBuiltIn) { profile in
-                        ProfileListRow(
-                            profile: profile,
-                            isActive: state.activeProfile.id == profile.id,
-                            isSelected: selectedProfile?.id == profile.id
-                        )
-                        .onTapGesture {
-                            selectedProfile = profile
-                        }
-                    }
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(FanProfile.allBuiltIn) { profile in
+                                ProfileListRow(
+                                    profile: profile,
+                                    isActive: state.activeProfile.id == profile.id,
+                                    isSelected: selectedProfile?.id == profile.id
+                                )
+                                .onTapGesture {
+                                    selectedProfile = profile
+                                }
+                            }
 
-                    Divider()
+                            Divider()
 
-                    if state.customProfiles.isEmpty {
-                        Text("Custom profiles will appear here")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .padding(.top, 4)
-                    } else {
-                        ForEach(state.customProfiles) { profile in
-                            ProfileListRow(
-                                profile: profile,
-                                isActive: state.activeProfile.id == profile.id,
-                                isSelected: selectedProfile?.id == profile.id
-                            )
-                            .onTapGesture {
-                                selectedProfile = profile
+                            if state.customProfiles.isEmpty {
+                                Text("Custom profiles will appear here")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.top, 4)
+                            } else {
+                                ForEach(state.customProfiles) { profile in
+                                    ProfileListRow(
+                                        profile: profile,
+                                        isActive: state.activeProfile.id == profile.id,
+                                        isSelected: selectedProfile?.id == profile.id
+                                    )
+                                    .onTapGesture {
+                                        selectedProfile = profile
+                                    }
+                                }
                             }
                         }
                     }
-
-                    Spacer()
+                    
+                    Spacer(minLength: 0)
 
                     HStack {
                         Button(action: { createNewProfile() }) { Image(systemName: "plus") }
@@ -525,37 +529,33 @@ struct CustomProfileDetailView: View {
                     .tint(.blue)
                     .disabled(state.activeProfile.id == profile.id)
                     .controlSize(.small)
-                    
-                    if let onDelete = onDelete {
-                        Button(role: .destructive, action: onDelete) {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.red)
-                        .controlSize(.small)
-                    }
                 }
             }
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                 GridRow {
                     Text("Sensor Targets").foregroundStyle(.secondary).font(.system(size: 12))
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], alignment: .leading, spacing: 8) {
-                        ForEach([SensorGroup.cpuCore, .gpu, .battery, .enclosure, .vrm, .nand, .wireless], id: \.self) { group in
-                            Toggle(group.rawValue, isOn: Binding(
-                                get: { selectedSources.contains(group) },
-                                set: { isOn in
-                                    if isOn {
-                                        selectedSources.insert(group)
-                                    } else {
-                                        selectedSources.remove(group)
+                    Menu {
+                        ForEach([SensorGroup.cpuCore, .gpu, .battery, .enclosure], id: \.self) { group in
+                            Button {
+                                if selectedSources.contains(group) {
+                                    selectedSources.remove(group)
+                                } else {
+                                    selectedSources.insert(group)
+                                }
+                            } label: {
+                                HStack {
+                                    Text(group.rawValue)
+                                    if selectedSources.contains(group) {
+                                        Image(systemName: "checkmark")
                                     }
                                 }
-                            ))
-                            .toggleStyle(.button)
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
+                            }
                         }
+                    } label: {
+                        Text(selectedSources.isEmpty ? SensorGroup.cpuCore.rawValue : selectedSources.map(\.rawValue).joined(separator: ", "))
+                            .lineLimit(1)
                     }
+                    .frame(width: 140)
                 }
                 GridRow {
                     Text("Aggregation Mode").foregroundStyle(.secondary).font(.system(size: 12))

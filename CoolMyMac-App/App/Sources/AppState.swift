@@ -133,9 +133,9 @@ final class AppState {
         guard refreshTask == nil else { return }  // prevent duplicate loops
         refresh()
         
-        refreshTask = Task { @MainActor [weak self] in
+        refreshTask = Task(priority: .utility) { @MainActor [weak self] in
             let activity = ProcessInfo.processInfo.beginActivity(
-                options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+                options: [.userInitiatedAllowingIdleSystemSleep],
                 reason: "CoolMyMac Menu Bar Updates"
             )
             defer { ProcessInfo.processInfo.endActivity(activity) }
