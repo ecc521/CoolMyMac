@@ -10,9 +10,9 @@ struct CoolMyMacCLI: AsyncParsableCommand {
         commandName: "coolmymac",
         abstract: "CoolMyMac fan control CLI",
         discussion: """
-        Connects to the CoolMyMac daemon via XPC to read sensors and control fan speeds
-        without requiring sudo. If the daemon is unreachable, falls back to direct SMC
-        access (requires root privileges).
+        Connects to the CoolMyMac daemon via XPC. Reading sensors and fans is always 
+        allowed for any user. Modifying fan profiles requires root (sudo) UNLESS you 
+        have explicitly enabled 'Allow Unprivileged CLI' in the CoolMyMac App Preferences.
         """,
         subcommands: [
             TempsCommand.self,
