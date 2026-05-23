@@ -184,6 +184,17 @@ struct GeneralPrefsView: View {
                     }
                 }
                 .padding(4)
+                
+                Divider()
+                
+                Form {
+                    Toggle("Allow Unprivileged CLI", isOn: Binding(
+                        get: { state.allowUnprivilegedCLI },
+                        set: { state.setAllowUnprivilegedCLI($0) }
+                    ))
+                    .help("Allows standard terminal commands to change profiles without requiring sudo.")
+                }
+                .padding(4)
             }
             .onAppear {
                 checkCLIStatus()
@@ -208,12 +219,6 @@ struct GeneralPrefsView: View {
                         Text("0 (e.g. 45°C)").tag(0)
                         Text("1 (e.g. 45.1°C)").tag(1)
                     }
-                    
-                    Toggle("Allow Unprivileged CLI", isOn: Binding(
-                        get: { state.allowUnprivilegedCLI },
-                        set: { state.setAllowUnprivilegedCLI($0) }
-                    ))
-                    .help("Allows standard terminal commands to change profiles without requiring sudo.")
                 }
                 .padding(4)
             }
@@ -250,7 +255,7 @@ struct GeneralPrefsView: View {
             isCLIInstalled = false
             return
         }
-        guard let myExecPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac").path else {
+        guard let myExecPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac-cli").path else {
             isCLIInstalled = false
             return
         }
@@ -258,7 +263,7 @@ struct GeneralPrefsView: View {
     }
     
     private func installCLI() {
-        guard let execPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac").path else { return }
+        guard let execPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac-cli").path else { return }
         
         let scriptSource = """
         do shell script "mkdir -p /usr/local/bin && ln -sf \\"\(execPath)\\" /usr/local/bin/coolmymac" with administrator privileges

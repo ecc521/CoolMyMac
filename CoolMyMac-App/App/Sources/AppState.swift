@@ -182,6 +182,7 @@ final class AppState {
             
             if baseStatus == .installed && !isReachable {
                 daemonStatus = .unreachable
+                hasCheckedDaemonVersion = false
             } else {
                 daemonStatus = baseStatus
             }
