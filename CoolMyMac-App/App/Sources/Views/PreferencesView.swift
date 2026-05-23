@@ -734,20 +734,7 @@ struct SensorsPrefsView: View {
                                         }
                                     }
                                     
-                                    if !isPowerOrClock {
-                                        Toggle("Use for fan control", isOn: Binding(
-                                            get: { state.activeSensors.contains(group) },
-                                            set: { isOn in
-                                                if isOn {
-                                                    state.activeSensors.insert(group)
-                                                } else if state.activeSensors.count > 1 {
-                                                    state.activeSensors.remove(group)
-                                                }
-                                            }
-                                        ))
-                                        .controlSize(.mini)
-                                        .tint(.blue)
-                                    }
+
                                 }
                                 .padding(.vertical, 4)
                             }
