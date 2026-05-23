@@ -178,6 +178,7 @@
 				2BB9101D2791093C373E7EAB /* Frameworks */,
 				AF1B71ACB0C94B257C292803 /* Embed Daemon */,
 				13A539486D46F016198EAF50 /* Resources */,
+				22D065CC8755301D4763CD6B /* Build & Embed CLI */,
 			);
 			buildRules = (
 			);
@@ -246,6 +247,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		22D065CC8755301D4763CD6B /* Build & Embed CLI */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build & Embed CLI";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Build the CLI as a universal binary\ncd \"${SRCROOT}/../CoolMyMac-CLI\"\nswift build -c release --arch arm64 --arch x86_64\n\n# Copy to the App bundle as 'coolmymac-cli' to avoid case-insensitive APFS collision with the 'CoolMyMac' GUI app\ncp -f \".build/apple/Products/Release/CoolMyMacCLI\" \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/coolmymac-cli\"\n\n# Code sign the CLI binary using the App's identity so it passes Xcode's final CodeSign phase\nif [ -n \"${EXPANDED_CODE_SIGN_IDENTITY}\" ]; then\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --options runtime \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/coolmymac-cli\"\nfi\n";
+		};
 		AF1B71ACB0C94B257C292803 /* Embed Daemon */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
