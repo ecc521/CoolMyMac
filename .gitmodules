@@ -1,0 +1,3 @@
+[submodule "homebrew-coolmymac"]
+	path = homebrew-coolmymac
+	url = https://github.com/ecc521/homebrew-coolmymac.git
