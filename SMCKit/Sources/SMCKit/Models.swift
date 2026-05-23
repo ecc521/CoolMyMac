@@ -157,8 +157,8 @@ public struct ProfileSettings: Codable, Sendable {
         sources: [SensorGroup] = [.cpuCore, .gpu],
         excludedSensors: [String] = [],
         aggregation: AggregationMode = .max,
-        spinUpTime: Double = 0.0,
-        spinDownTime: Double = 5.0
+        spinUpTime: Double = 3.0,
+        spinDownTime: Double = 10.0
     ) {
         self.sources = sources
         self.excludedSensors = excludedSensors
