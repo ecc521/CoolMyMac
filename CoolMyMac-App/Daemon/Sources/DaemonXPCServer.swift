@@ -116,6 +116,11 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
         encode(readings, reply: reply)
     }
 
+    func readAllSensors(withReply reply: @escaping (Data?, Error?) -> Void) {
+        let readings = ThermalController.shared.readAllSensors()
+        encode(readings, reply: reply)
+    }
+
     // MARK: Fans
 
     func readFans(withReply reply: @escaping (Data?, Error?) -> Void) {
@@ -184,41 +189,43 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     // MARK: Settings
     
     func setUpdateInterval(_ interval: Double, withReply reply: @escaping (Error?) -> Void) {
-        UserDefaults.standard.set(interval, forKey: "updateInterval")
+        UserDefaults(suiteName: "com.coolmymac.daemon")?.set(interval, forKey: "updateInterval")
         ThermalController.shared.setPollInterval(interval)
         reply(nil)
     }
     
     func getUpdateInterval(withReply reply: @escaping (Double, Error?) -> Void) {
-        let saved = UserDefaults.standard.double(forKey: "updateInterval")
+        let saved = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "updateInterval") ?? 0
         let interval = saved == 0 ? 1.0 : saved
         reply(interval, nil)
     }
 
     // MARK: - Global Sensor Selection
 
-    func setActiveSensors(_ groups: [String], withReply reply: @escaping (Error?) -> Void) {
-        UserDefaults.standard.set(groups, forKey: "activeSensors")
+    func setActiveSensors(_ groups: [String], excludedSensors: [String], withReply reply: @escaping (Error?) -> Void) {
+        UserDefaults(suiteName: "com.coolmymac.daemon")?.set(groups, forKey: "activeSensors")
+        UserDefaults(suiteName: "com.coolmymac.daemon")?.set(excludedSensors, forKey: "excludedSensors")
         reply(nil)
     }
 
-    func getActiveSensors(withReply reply: @escaping ([String], Error?) -> Void) {
-        let saved = UserDefaults.standard.stringArray(forKey: "activeSensors") ?? [
+    func getActiveSensors(withReply reply: @escaping ([String], [String], Error?) -> Void) {
+        let savedGroups = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "activeSensors") ?? [
             SensorGroup.cpuCore.rawValue, 
             SensorGroup.gpu.rawValue
         ]
-        reply(saved, nil)
+        let savedExcluded = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "excludedSensors") ?? []
+        reply(savedGroups, savedExcluded, nil)
     }
 
     // MARK: - App Security Settings
 
     func setAllowUnprivilegedCLI(_ allow: Bool, withReply reply: @escaping (Error?) -> Void) {
-        UserDefaults.standard.set(allow, forKey: "allowUnprivilegedCLI")
+        UserDefaults(suiteName: "com.coolmymac.daemon")?.set(allow, forKey: "allowUnprivilegedCLI")
         reply(nil)
     }
 
     func getAllowUnprivilegedCLI(withReply reply: @escaping (Bool, Error?) -> Void) {
-        let saved = UserDefaults.standard.bool(forKey: "allowUnprivilegedCLI")
+        let saved = UserDefaults(suiteName: "com.coolmymac.daemon")?.bool(forKey: "allowUnprivilegedCLI") ?? false
         reply(saved, nil)
     }
 

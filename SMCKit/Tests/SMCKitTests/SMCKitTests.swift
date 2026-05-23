@@ -100,7 +100,7 @@ final class SMCKitTests: XCTestCase {
         let data = try JSONEncoder().encode(reading)
         let decoded = try JSONDecoder().decode(SensorReading.self, from: data)
         XCTAssertEqual(decoded.id, "TC0C")
-        XCTAssertEqual(decoded.celsius, 72.5)
+        XCTAssertEqual(decoded.value, 72.5)
         XCTAssertEqual(decoded.group, .cpuCore)
     }
 

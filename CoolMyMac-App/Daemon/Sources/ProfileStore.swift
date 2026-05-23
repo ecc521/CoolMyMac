@@ -36,8 +36,8 @@ final class ProfileStore: @unchecked Sendable {
             cacheLock.unlock()
             
             let txtURL = profilesURL.deletingLastPathComponent().appendingPathComponent("active_profile.txt")
-            let disk = (try? String(contentsOf: txtURL, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "balanced"
-            let finalDisk = disk.isEmpty ? "balanced" : disk
+            let disk = (try? String(contentsOf: txtURL, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "system"
+            let finalDisk = disk.isEmpty ? "system" : disk
             
             cacheLock.lock()
             _cachedActiveProfileID = finalDisk
@@ -56,7 +56,7 @@ final class ProfileStore: @unchecked Sendable {
 
     func getActiveProfile() -> FanProfile {
         let id = activeProfileID
-        return profile(named: id) ?? .balanced
+        return profile(named: id) ?? .system
     }
 
     func setActiveProfile(id: String) throws {
@@ -134,8 +134,8 @@ final class ProfileStore: @unchecked Sendable {
         profileCache.removeValue(forKey: id)
         cacheLock.unlock()
         
-        // If we just deleted the active profile, fall back to balanced
-        if activeProfileID == id { activeProfileID = "balanced" }
+        // If we just deleted the active profile, fall back to system
+        if activeProfileID == id { activeProfileID = "system" }
         profileLogger.info("Deleted custom profile '\(id, privacy: .public)'")
     }
 

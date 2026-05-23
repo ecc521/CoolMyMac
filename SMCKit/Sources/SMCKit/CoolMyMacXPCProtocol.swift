@@ -13,6 +13,9 @@ import Foundation
     /// Returns JSON-encoded array of `SensorReading` for all active sensors.
     func readSensors(withReply reply: @escaping (Data?, Error?) -> Void)
 
+    /// Returns JSON-encoded array of `SensorReading` structs. (Full sensor sweep, slow)
+    func readAllSensors(withReply reply: @escaping (Data?, Error?) -> Void)
+
     /// Returns JSON-encoded array of `FanStatus` for all physical fans.
     func readFans(withReply reply: @escaping (Data?, Error?) -> Void)
 
@@ -50,11 +53,11 @@ import Foundation
 
     // MARK: - Global Sensor Selection
 
-    /// Sets the active sensor groups used for aggregation by the daemon.
-    func setActiveSensors(_ groups: [String], withReply reply: @escaping (Error?) -> Void)
+    /// Sets the active sensor groups used for aggregation by the daemon, and any specific sensors to exclude.
+    func setActiveSensors(_ groups: [String], excludedSensors: [String], withReply reply: @escaping (Error?) -> Void)
 
-    /// Gets the current active sensor groups from the daemon.
-    func getActiveSensors(withReply reply: @escaping ([String], Error?) -> Void)
+    /// Gets the current active sensor groups and excluded sensors from the daemon.
+    func getActiveSensors(withReply reply: @escaping ([String], [String], Error?) -> Void)
 
     // MARK: - App Security Settings
 

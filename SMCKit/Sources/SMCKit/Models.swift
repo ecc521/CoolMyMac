@@ -6,27 +6,56 @@ import Foundation
 
 // MARK: - Sensor Reading
 
-/// A temperature reading from a single SMC sensor.
-public struct SensorReading: Codable, Identifiable, Sendable {
-    public let id: String          // SMC key, e.g. "TC0C"
-    public let name: String        // Human-readable name, e.g. "CPU Core 0"
-    public let group: SensorGroup  // Which group this sensor belongs to
-    public let celsius: Double     // Current reading in °C
+public enum SensorUnit: String, Codable, Sendable {
+    case celsius = "°C"
+    case watts = "W"
+    case megahertz = "MHz"
+}
 
-    public init(id: String, name: String, group: SensorGroup, celsius: Double) {
-        self.id = id
+/// A reading from a single sensor or metric.
+public struct SensorReading: Codable, Identifiable, Sendable {
+    public var id: String { name }
+    public let name: String        // Human-readable name
+    public let group: SensorGroup  // Which group this sensor belongs to
+    public let value: Double       // Current reading value
+    public let unit: SensorUnit    // Unit of measurement
+
+    public init(name: String, group: SensorGroup, value: Double, unit: SensorUnit = .celsius) {
         self.name = name
         self.group = group
-        self.celsius = celsius
+        self.value = value
+        self.unit = unit
     }
 }
 
-/// Logical grouping of sensors for fan curve aggregation.
+/// Logical grouping of sensors.
 public enum SensorGroup: String, Codable, CaseIterable, Sendable {
-    case cpuCore = "CPU_CORES"
-    case gpu     = "GPU"
-    case nand    = "NAND"
-    case other   = "OTHER"
+    case cpuCore = "CPU Core"
+    case gpu = "GPU"
+    case nand = "NAND (Storage)"
+    case battery = "Battery"
+    case enclosure = "Enclosure / Skin"
+    case vrm = "VRM / Power"
+    case wireless = "Wireless"
+    case power = "Package Power"
+    case clockSpeed = "Clock Speed"
+    case other = "Other"
+    
+    public init?(rawValue: String) {
+        switch rawValue {
+        case "CPU Core", "CPU_CORES": self = .cpuCore
+        case "GPU": self = .gpu
+        case "NAND (Storage)", "NAND": self = .nand
+        case "Battery": self = .battery
+        case "Enclosure / Skin": self = .enclosure
+        case "VRM / Power": self = .vrm
+        case "Wireless": self = .wireless
+        case "Package Power": self = .power
+        case "Clock Speed": self = .clockSpeed
+        case "Other", "OTHER": self = .other
+        default: return nil
+        }
+    }
 }
 
 // MARK: - Fan Status
@@ -82,20 +111,20 @@ public struct FanCurve: Codable, Sendable {
     public let points: [CurvePoint]
 
     public init(points: [CurvePoint]) {
-        self.points = points.sorted { $0.celsius < $1.celsius }
+        self.points = points.sorted { $0.value < $1.value }
     }
 
     /// Interpolates the target RPM percentage for a given temperature.
     /// Returns a value between 0.0 and 1.0.
-    public func targetPercentage(for celsius: Double) -> Double {
+    public func targetPercentage(for value: Double) -> Double {
         guard !points.isEmpty else { return 0.0 }
-        if celsius <= points.first!.celsius { return points.first!.rpmPercentage }
-        if celsius >= points.last!.celsius  { return points.last!.rpmPercentage  }
+        if value <= points.first!.value { return points.first!.rpmPercentage }
+        if value >= points.last!.value  { return points.last!.rpmPercentage  }
 
         for i in 0..<(points.count - 1) {
             let lo = points[i], hi = points[i + 1]
-            if celsius >= lo.celsius && celsius <= hi.celsius {
-                let t = (celsius - lo.celsius) / (hi.celsius - lo.celsius)
+            if value >= lo.value && value <= hi.value {
+                let t = (value - lo.value) / (hi.value - lo.value)
                 return lo.rpmPercentage + t * (hi.rpmPercentage - lo.rpmPercentage)
             }
         }
@@ -104,11 +133,11 @@ public struct FanCurve: Codable, Sendable {
 }
 
 public struct CurvePoint: Codable, Sendable {
-    public let celsius: Double
+    public let value: Double
     public let rpmPercentage: Double
 
-    public init(celsius: Double, rpmPercentage: Double) {
-        self.celsius = celsius
+    public init(value: Double, rpmPercentage: Double) {
+        self.value = value
         self.rpmPercentage = max(0.0, min(1.0, rpmPercentage))
     }
 }
@@ -117,6 +146,8 @@ public struct CurvePoint: Codable, Sendable {
 public struct ProfileSettings: Codable, Sendable {
     /// Which sensor groups drive the fan curve.
     public let sources: [SensorGroup]
+    /// Specific sensors to exclude from the aggregation.
+    public let excludedSensors: [String]
     /// How to reduce multiple sensor readings to one driving temperature.
     public let aggregation: AggregationMode
     public let spinUpTime: Double
@@ -124,11 +155,13 @@ public struct ProfileSettings: Codable, Sendable {
 
     public init(
         sources: [SensorGroup] = [.cpuCore, .gpu],
+        excludedSensors: [String] = [],
         aggregation: AggregationMode = .max,
         spinUpTime: Double = 0.0,
         spinDownTime: Double = 5.0
     ) {
         self.sources = sources
+        self.excludedSensors = excludedSensors
         self.aggregation = aggregation
         self.spinUpTime = spinUpTime
         self.spinDownTime = spinDownTime
@@ -137,6 +170,7 @@ public struct ProfileSettings: Codable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.sources = try container.decodeIfPresent([SensorGroup].self, forKey: .sources) ?? [.cpuCore, .gpu]
+        self.excludedSensors = try container.decodeIfPresent([String].self, forKey: .excludedSensors) ?? []
         self.aggregation = try container.decodeIfPresent(AggregationMode.self, forKey: .aggregation) ?? .max
         
         // Backwards compatibility for older JSON profiles
@@ -149,19 +183,18 @@ public struct ProfileSettings: Codable, Sendable {
         }
     }
 
-    private struct CodingKeys: CodingKey {
-        var stringValue: String
-        init?(stringValue: String) { self.stringValue = stringValue }
-        var intValue: Int?
-        init?(intValue: Int) { return nil }
+    private enum CodingKeys: String, CodingKey {
+        case sources, excludedSensors, aggregation, spinUpTime, spinDownTime
+        case smoothingWindowSeconds // For backwards compatibility during decoding
+    }
 
-        static let sources = CodingKeys(stringValue: "sources")!
-        static let aggregation = CodingKeys(stringValue: "aggregation")!
-        // New keys
-        static let spinUpTime = CodingKeys(stringValue: "spinUpTime")!
-        static let spinDownTime = CodingKeys(stringValue: "spinDownTime")!
-        // Old key
-        static let smoothingWindowSeconds = CodingKeys(stringValue: "smoothingWindowSeconds")!
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(sources, forKey: .sources)
+        try container.encode(excludedSensors, forKey: .excludedSensors)
+        try container.encode(aggregation, forKey: .aggregation)
+        try container.encode(spinUpTime, forKey: .spinUpTime)
+        try container.encode(spinDownTime, forKey: .spinDownTime)
     }
 }
 

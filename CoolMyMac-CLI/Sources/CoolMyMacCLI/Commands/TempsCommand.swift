@@ -33,7 +33,7 @@ struct TempsCommand: AsyncParsableCommand {
 
         case .success(let readings):
             var filtered = all ? readings : readings.filter { $0.group != .other }
-            if hot { filtered = filtered.filter { $0.celsius >= threshold } }
+            if hot { filtered = filtered.filter { $0.value >= threshold } }
 
             if json {
                 let data = try JSONEncoder().encode(filtered)
@@ -48,17 +48,17 @@ struct TempsCommand: AsyncParsableCommand {
 
             // Group by sensor group
             let grouped = Dictionary(grouping: filtered, by: \.group)
-            let order: [SensorGroup] = [.cpuCore, .gpu, .nand, .other]
+            let order: [SensorGroup] = [.cpuCore, .gpu, .vrm, .wireless, .battery, .enclosure, .nand, .other]
 
             for group in order {
                 guard let sensors = grouped[group], !sensors.isEmpty else { continue }
                 print("\n\(group.displayName)")
                 print(String(repeating: "─", count: 30))
-                for sensor in sensors.sorted(by: { $0.celsius > $1.celsius }) {
-                    let bar = thermalBar(celsius: sensor.celsius)
-                    let arrow = sensor.celsius >= 80 ? " ⚠️" : ""
+                for sensor in sensors.sorted(by: { $0.value > $1.value }) {
+                    let bar = thermalBar(celsius: sensor.value)
+                    let arrow = sensor.value >= 80 ? " ⚠️" : ""
                     print(String(format: "  %-20@  %5.1f°C  %@%@",
-                          sensor.name, sensor.celsius, bar, arrow))
+                          sensor.name, sensor.value, bar, arrow))
                 }
             }
             print()
@@ -80,6 +80,10 @@ private extension SensorGroup {
         case .cpuCore: return "CPU Cores"
         case .gpu:     return "GPU"
         case .nand:    return "NAND / Storage"
+        case .battery: return "Battery"
+        case .enclosure: return "Enclosure / Skin"
+        case .vrm:     return "VRM / Power"
+        case .wireless: return "Wireless"
         case .other:   return "Other"
         }
     }

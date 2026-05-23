@@ -6,32 +6,75 @@
 import Foundation
 import SMCKit
 import os.log
+import IOKit
+import IOKit.pwr_mgt
 
-private let thermalLogger = Logger(subsystem: "com.coolmymac.daemon", category: "ThermalController")
+private let kIOMessageCanSystemSleep: UInt32 = 0xE0000270
+private let kIOMessageSystemWillSleep: UInt32 = 0xE0000280
+private let kIOMessageSystemHasPoweredOn: UInt32 = 0xE0000300
+
+final class PowerMonitor {
+    var rootPort: io_connect_t = 0
+    var notifierObject: io_object_t = 0
+    var notifyPortRef: IONotificationPortRef?
+
+    func start() {
+        let context = Unmanaged.passUnretained(self).toOpaque()
+        rootPort = IORegisterForSystemPower(context, &notifyPortRef, { (context, service, messageType, messageArgument) in
+            guard let context = context else { return }
+            let monitor = Unmanaged<PowerMonitor>.fromOpaque(context).takeUnretainedValue()
+            
+            if messageType == kIOMessageCanSystemSleep || messageType == kIOMessageSystemWillSleep {
+                ThermalController.shared.thermalLogger.notice("System going to sleep. Yielding fans to SMC.")
+                ThermalController.shared.resetAllFansIfManaged()
+                IOAllowPowerChange(monitor.rootPort, Int(bitPattern: messageArgument))
+            } else if messageType == kIOMessageSystemHasPoweredOn {
+                ThermalController.shared.thermalLogger.notice("System woke up. Resuming daemon control.")
+            }
+        }, &notifierObject)
+        
+        if rootPort != 0, let ref = notifyPortRef {
+            IONotificationPortSetDispatchQueue(ref, DispatchQueue.main)
+        }
+    }
+}
 
 final class ThermalController: @unchecked Sendable {
 
     static let shared = ThermalController()
+    
+    let thermalLogger = Logger(subsystem: "com.coolmymac.daemon", category: "ThermalController")
 
     // How often we poll sensors (seconds)
     private var pollInterval: TimeInterval
 
     private var timer: DispatchSourceTimer?
     private var smcController: SMCController?
+    private let powerMonitor = PowerMonitor()
 
-    // Rolling temperature samples per fan, used for smoothing
-    private var temperatureSamples: [Double] = []
+    // Decaying EMA with hysteresis
+    private var lastSmoothedTemp: Double = 0.0
 
     // Cached fan count — does not change at runtime on a given machine.
     // Read once at init and refreshed from the poll queue if needed.
     private var currentFanCount: Int = 0
 
-    private let queue = DispatchQueue(label: "com.coolmymac.daemon.thermal", qos: .userInitiated)
+    private let queue = DispatchQueue(label: "com.coolmymac.daemon.thermal", qos: .utility)
 
     private init() {
-        let saved = UserDefaults.standard.double(forKey: "updateInterval")
+        let saved = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "updateInterval") ?? 0
         self.pollInterval = saved == 0 ? 1.0 : saved
-        setup(with: try? SMCController())
+        
+        do {
+            let controller = try SMCController()
+            setup(with: controller)
+            thermalLogger.notice("SUCCESS: SMCController initialized. Fan count: \(self.currentFanCount, privacy: .public)")
+        } catch {
+            setup(with: nil)
+            thermalLogger.error("CRITICAL: Failed to initialize SMCController in daemon: \(error.localizedDescription, privacy: .public)")
+        }
+
+        powerMonitor.start()
     }
 
     #if DEBUG
@@ -75,13 +118,54 @@ final class ThermalController: @unchecked Sendable {
     }
 
     // MARK: - Latest Readings (thread-safe snapshot for XPC reads)
-    // All mutations happen on `queue`. Reads from other threads use queue.sync.
+    // All mutations happen on `queue`. Reads from other threads use stateLock.
 
+    private let stateLock = NSLock()
     private var _latestReadings: [SensorReading] = []
     private var _latestFanStatus: [FanStatus] = []
 
-    var latestReadings: [SensorReading] { queue.sync { _latestReadings } }
-    var latestFanStatus: [FanStatus]    { queue.sync { _latestFanStatus } }
+    var latestReadings: [SensorReading] { 
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _latestReadings 
+    }
+    
+    var latestFanStatus: [FanStatus] { 
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _latestFanStatus 
+    }
+
+    func readAllSensors() -> [SensorReading] {
+        var allReadings = (try? smcController?.readTemperatures(for: nil)) ?? []
+        let advancedMetrics = MetricsService.shared.fetchPowerAndClocks()
+        allReadings.append(contentsOf: advancedMetrics)
+        return allReadings
+    }
+
+    private var isCurrentlyBackground: Bool = false
+    private var currentActivity: NSObjectProtocol?
+    
+    private func updateProcessPriority(isSystemMode: Bool) {
+        if isSystemMode && !isCurrentlyBackground {
+            if let activity = currentActivity {
+                ProcessInfo.processInfo.endActivity(activity)
+                currentActivity = nil
+            }
+            // .background pushes the workload exclusively to E-cores
+            currentActivity = ProcessInfo.processInfo.beginActivity(options: .background, reason: "CoolMyMac System Polling")
+            isCurrentlyBackground = true
+            thermalLogger.info("Downshifted daemon to background QoS (System Mode)")
+        } else if !isSystemMode && isCurrentlyBackground {
+            if let activity = currentActivity {
+                ProcessInfo.processInfo.endActivity(activity)
+                currentActivity = nil
+            }
+            // Release the background activity so it runs at the default .utility QoS of the DispatchQueue
+            isCurrentlyBackground = false
+            thermalLogger.info("Elevated daemon to utility QoS (Custom Mode)")
+        }
+    }
 
     // MARK: - Poll Cycle
 
@@ -89,27 +173,58 @@ final class ThermalController: @unchecked Sendable {
         guard let smc = smcController else { return }
 
         let profile = ProfileStore.shared.getActiveProfile()
+        let isSystemMode = profile.curve.points.isEmpty
+        updateProcessPriority(isSystemMode: isSystemMode)
 
-        // Auto mode: do nothing, Apple manages fans
-        guard !profile.curve.points.isEmpty else {
+        // Read sensors so the UI can display them even in System mode
+        do {
+            let savedStrings = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "activeSensors") ?? [
+                SensorGroup.cpuCore.rawValue, 
+                SensorGroup.gpu.rawValue
+            ]
+            let globalSources = savedStrings.compactMap(SensorGroup.init(rawValue:))
+            let groupsToRead = Set(globalSources.isEmpty ? [.cpuCore, .gpu] : globalSources)
+
+            let readings = try smc.readTemperatures(for: groupsToRead)
+            stateLock.lock()
+            _latestReadings = readings
+            stateLock.unlock()
+        } catch {
+            thermalLogger.error("CRITICAL: readTemperatures failed: \(error.localizedDescription, privacy: .public)")
+        }
+
+        // Auto mode: do nothing with fan curves, but we still need to read fan status
+        if isSystemMode {
             resetAllFansIfManaged()
+            do {
+                let allFans = try smc.readAllFans()
+                let fanStatus = allFans.map { fan in
+                    return FanStatus(id: fan.id, name: fan.name, currentRPM: fan.currentRPM,
+                                     minRPM: fan.minRPM, maxRPM: fan.maxRPM, isManaged: false)
+                }
+                stateLock.lock()
+                _latestFanStatus = fanStatus
+                stateLock.unlock()
+            } catch {
+                thermalLogger.error("Thermal poll error: \(error.localizedDescription, privacy: .public)")
+            }
             return
         }
 
-        // Read sensors
+        // Apply Fan Profile
         do {
-            let readings = try smc.readTemperatures()
-            _latestReadings = readings
-
             // Global override: Use activeSensors from UserDefaults instead of the profile's sources
-            let savedStrings = UserDefaults.standard.stringArray(forKey: "activeSensors") ?? [
+            let savedStrings = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "activeSensors") ?? [
                 SensorGroup.cpuCore.rawValue, 
                 SensorGroup.gpu.rawValue
             ]
             let globalSources = savedStrings.compactMap(SensorGroup.init(rawValue:))
             
+            let savedExcluded = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "excludedSensors") ?? []
+            
             let settings = ProfileSettings(
                 sources: globalSources.isEmpty ? [.cpuCore, .gpu] : globalSources,
+                excludedSensors: savedExcluded,
                 aggregation: profile.settings.aggregation,
                 spinUpTime: profile.settings.spinUpTime,
                 spinDownTime: profile.settings.spinDownTime
@@ -134,19 +249,23 @@ final class ThermalController: @unchecked Sendable {
                 } else {
                     let range = Double(fan.maxRPM - fan.minRPM)
                     let targetRPM = Int(Double(fan.minRPM) + (range * targetPercentage))
+                    
+                    // Always enforce the profile's target RPM (Forced Mode).
+                    // Yielding based on currentRPM causes infinite oscillation (thrashing)
+                    // because actual RPM bounces around the target RPM.
                     try smc.setFanMinRPM(index: fan.id, rpm: targetRPM)
+                    fansAreManaged = true
                 }
             }
-            
-            fansAreManaged = !profile.curve.points.isEmpty
 
             // Read back and publish status for App/CLI UI updates
-            _latestFanStatus = allFans.map { fan in
-                let range = Double(fan.maxRPM - fan.minRPM)
-                let pct = (Double(fan.currentRPM) - Double(fan.minRPM)) / range
+            let fanStatus = allFans.map { fan in
                 return FanStatus(id: fan.id, name: fan.name, currentRPM: fan.currentRPM,
                                  minRPM: fan.minRPM, maxRPM: fan.maxRPM, isManaged: true)
             }
+            stateLock.lock()
+            _latestFanStatus = fanStatus
+            stateLock.unlock()
 
         } catch {
             thermalLogger.error("Thermal poll error: \(error.localizedDescription, privacy: .public)")
@@ -158,34 +277,39 @@ final class ThermalController: @unchecked Sendable {
     // MARK: - Smoothing
 
     private func smooth(sample: Double, settings: ProfileSettings) -> Double {
-        let currentAverage = temperatureSamples.isEmpty 
-            ? sample 
-            : temperatureSamples.reduce(0, +) / Double(temperatureSamples.count)
-            
-        let isSpinUp = sample > currentAverage
-        let windowSeconds = isSpinUp ? settings.spinUpTime : settings.spinDownTime
-        let windowSamples = max(1, Int(windowSeconds / pollInterval))
+        if lastSmoothedTemp == 0.0 {
+            lastSmoothedTemp = sample
+            return sample
+        }
         
-        if isSpinUp && windowSamples <= 1 {
-            // Fast spin-up: If the new reading is hotter than the average,
-            // fast-forward the buffer to immediately apply the highest temperature.
-            temperatureSamples = Array(repeating: sample, count: windowSamples)
+        func alpha(for time: TimeInterval) -> Double {
+            if time <= 0 { return 1.0 }
+            let periods = time / pollInterval
+            return 2.0 / (periods + 1.0)
+        }
+        
+        let isSpinUp = sample > lastSmoothedTemp
+        
+        if isSpinUp {
+            let a = alpha(for: settings.spinUpTime)
+            lastSmoothedTemp = (sample * a) + (lastSmoothedTemp * (1.0 - a))
         } else {
-            // Smoothly average the changes
-            temperatureSamples.append(sample)
-            if temperatureSamples.count > windowSamples {
-                temperatureSamples.removeFirst(temperatureSamples.count - windowSamples)
+            // Hysteresis: Hold high water mark until it drops by at least 2.0°C
+            let hysteresisBand = 2.0 
+            if lastSmoothedTemp - sample > hysteresisBand {
+                let a = alpha(for: settings.spinDownTime)
+                lastSmoothedTemp = (sample * a) + (lastSmoothedTemp * (1.0 - a))
             }
         }
         
-        return temperatureSamples.reduce(0, +) / Double(temperatureSamples.count)
+        return lastSmoothedTemp
     }
 
     // MARK: - Fan Reset
 
     private var fansAreManaged = false
 
-    private func resetAllFansIfManaged() {
+    func resetAllFansIfManaged() {
         guard fansAreManaged else { return }
         resetAllFans()
     }
@@ -195,7 +319,7 @@ final class ThermalController: @unchecked Sendable {
         do {
             try smc.resetAllFans()
             fansAreManaged = false
-            temperatureSamples.removeAll()
+            lastSmoothedTemp = 0.0
             thermalLogger.info("All fans reset to Apple auto")
         } catch {
             thermalLogger.error("Failed to reset fans: \(error.localizedDescription, privacy: .public)")

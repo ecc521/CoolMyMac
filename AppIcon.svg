@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1999FF" />
+      <stop offset="100%" stop-color="#004CFF" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="1024" height="1024" rx="230" ry="230" fill="url(#bg-grad)" />
+
+  <!-- A simplified "wind" bezier path representation -->
+  <g transform="translate(160, 260) scale(1.6)" stroke="#FFFFFF" stroke-width="35" stroke-linecap="round" fill="none">
+      <!-- Top wave -->
+      <path d="M 230,120 C 350,120 380,50 340,30 C 290,0 250,50 250,90 C 250,120 280,120 300,120 M 120,120 L 230,120" />
+      
+      <!-- Middle wave -->
+      <path d="M 120,200 L 320,200 C 450,200 450,120 400,100 C 350,70 300,150 320,190" />
+      
+      <!-- Bottom wave -->
+      <path d="M 170,280 L 270,280 C 350,280 370,350 320,380 C 270,410 230,350 250,310" />
+  </g>
+</svg>

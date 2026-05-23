@@ -22,16 +22,20 @@ final class AppState {
     var customProfiles: [FanProfile] = []
 
     // Derived: CPU and GPU temps for the popover tiles
-    var cpuTemp: Double? { sensors.filter { $0.group == .cpuCore }.map(\.celsius).max() }
-    var gpuTemp: Double? { sensors.filter { $0.group == .gpu }.map(\.celsius).max() }
+    var cpuTemp: Double? { sensors.filter { $0.group == .cpuCore }.map(\.value).max() }
+    var gpuTemp: Double? { sensors.filter { $0.group == .gpu }.map(\.value).max() }
 
     // Hottest sensor reading for the icon color gradient
-    var hottestTemp: Double { sensors.map(\.celsius).max() ?? 0.0 }
+    var hottestTemp: Double {
+        let coreTemps = sensors.filter { $0.group == .cpuCore || $0.group == .gpu }.map(\.value)
+        return coreTemps.max() ?? (sensors.map(\.value).max() ?? 0.0)
+    }
 
     // MARK: - Daemon Status
 
     var daemonStatus: DaemonInstallStatus = .unknown
     var isRefreshing: Bool = false
+    var lastSensorsUpdate: Date? = nil
 
     // MARK: - Settings (persisted in UserDefaults)
 
@@ -64,9 +68,16 @@ final class AppState {
                     }
                 }
             } catch {
-                logger.error("Failed to toggle Launch at Login: \(error.localizedDescription)")
+                logger.error("Failed to set login item: \(error.localizedDescription)")
             }
         }
+    }
+
+    var allowUnprivilegedCLI: Bool = false
+
+    func setAllowUnprivilegedCLI(_ allow: Bool) {
+        allowUnprivilegedCLI = allow
+        Task { try? await client.setAllowUnprivilegedCLI(allow) }
     }
     
     var updateInterval: Double = {
@@ -84,7 +95,16 @@ final class AppState {
     var activeSensors: Set<SensorGroup> = [.cpuCore, .gpu] {
         didSet {
             let array = Array(activeSensors)
-            Task { try? await client.setActiveSensors(array) }
+            let excludedArray = Array(excludedSensors)
+            Task { try? await client.setActiveSensors(array, excludedSensors: excludedArray) }
+        }
+    }
+
+    var excludedSensors: Set<String> = [] {
+        didSet {
+            let array = Array(activeSensors)
+            let excludedArray = Array(excludedSensors)
+            Task { try? await client.setActiveSensors(array, excludedSensors: excludedArray) }
         }
     }
 
@@ -95,25 +115,46 @@ final class AppState {
     // MARK: - Client
 
     var client = CoolMyMacClient()
-    private var refreshTimer: Timer?
+    private var refreshTask: Task<Void, Never>?
+    var updateChecker = UpdateChecker()
 
     // MARK: - Lifecycle
 
     init() {
         // Start refreshing immediately so data is preloaded
         startRefreshing()
+        
+        Task {
+            await updateChecker.checkForUpdates()
+        }
     }
 
     func startRefreshing() {
-        guard refreshTimer == nil else { return }  // prevent duplicate timers
+        guard refreshTask == nil else { return }  // prevent duplicate loops
         refresh()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: updateInterval, repeats: true) { [weak self] _ in
-            self?.refresh()
+        
+        refreshTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let self = self else { break }
+                try? await Task.sleep(nanoseconds: UInt64(self.updateInterval * 1_000_000_000))
+                if !Task.isCancelled {
+                    self.refresh()
+                }
+            }
         }
     }
+    
     func stopRefreshing() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
+        refreshTask?.cancel()
+        refreshTask = nil
+    }
+
+    var isViewingAllSensors: Bool = false {
+        didSet {
+            if isViewingAllSensors && !oldValue {
+                refresh()
+            }
+        }
     }
 
     func refresh() {
@@ -132,17 +173,20 @@ final class AppState {
             logger.info("Refreshing... daemonStatus=\(String(describing: self.daemonStatus)) reachable=\(isReachable)")
             
             if daemonStatus == .installed && isReachable {
-                async let s = client.readSensors()
+                async let s = isViewingAllSensors ? client.readAllSensors() : client.readSensors()
                 async let f = client.readFans()
                 async let p = client.activeProfile()
-                async let a = client.getActiveSensors()
                 async let c = client.getCustomProfiles()
+                async let u = client.getAllowUnprivilegedCLI()
                 
                 sensors = (try? await s) ?? sensors
                 fans = (try? await f) ?? fans
                 activeProfile = (try? await p) ?? activeProfile
-                activeSensors = Set((try? await a) ?? [.cpuCore, .gpu])
+                let globalSensors = try? await client.getActiveSensors()
+                activeSensors = Set(globalSensors?.groups ?? [.cpuCore, .gpu])
+                excludedSensors = Set(globalSensors?.excludedSensors ?? [])
                 customProfiles = (try? await c) ?? customProfiles
+                if let allow = try? await u { allowUnprivilegedCLI = allow }
             } else {
                 let fallback = await Task.detached {
                     do {
@@ -166,12 +210,13 @@ final class AppState {
                 activeProfile = .system
             }
             logger.info("Refresh complete. sensors=\(self.sensors.count) fans=\(self.fans.count)")
+            lastSensorsUpdate = Date()
             isRefreshing = false
         }
     }
 
     func setProfile(_ profile: FanProfile) {
-        Task { @MainActor in
+        Task {
             if daemonStatus == .notInstalled {
                 try? await DaemonManager.shared.installDaemon()
                 return
@@ -208,4 +253,76 @@ enum DaemonInstallStatus {
     case requiresApproval   // User denied, can re-request
     case unreachable        // SMAppService says installed, but XPC pipe is dead
     case unknown
+}
+
+// MARK: - Auto Updater
+
+struct GitHubRelease: Codable {
+    let tagName: String
+    let htmlUrl: String
+    
+    enum CodingKeys: String, CodingKey {
+        case tagName = "tag_name"
+        case htmlUrl = "html_url"
+    }
+}
+
+@MainActor
+@Observable
+final class UpdateChecker {
+    var updateAvailable: Bool = false
+    var latestVersion: String = ""
+    var releaseUrl: URL? = nil
+    
+    private let logger = Logger(subsystem: "com.coolmymac.app", category: "UpdateChecker")
+    private let repoAPIUrl = URL(string: "https://api.github.com/repos/ecc521/CoolMyMac/releases/latest")!
+    
+    func checkForUpdates() async {
+        do {
+            var request = URLRequest(url: repoAPIUrl)
+            request.timeoutInterval = 10.0
+            request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else {
+                logger.warning("Failed to check for updates: Invalid HTTP response")
+                return
+            }
+            
+            let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+            
+            // "v1.2.0" -> "1.2.0"
+            let latestVersionString = release.tagName.replacingOccurrences(of: "v", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            let currentVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
+            
+            if isVersion(latestVersionString, strictlyGreaterThan: currentVersionString) {
+                self.updateAvailable = true
+                self.latestVersion = latestVersionString
+                self.releaseUrl = URL(string: release.htmlUrl)
+                logger.info("Update available! Current: \(currentVersionString), Latest: \(latestVersionString)")
+            } else {
+                logger.info("App is up to date. Current: \(currentVersionString), Latest: \(latestVersionString)")
+            }
+        } catch {
+            logger.error("Error checking for updates: \(error.localizedDescription)")
+        }
+    }
+    
+    private func isVersion(_ v1: String, strictlyGreaterThan v2: String) -> Bool {
+        let components1 = v1.split(separator: ".").compactMap { Int($0) }
+        let components2 = v2.split(separator: ".").compactMap { Int($0) }
+        
+        let count = max(components1.count, components2.count)
+        
+        for i in 0..<count {
+            let c1 = i < components1.count ? components1[i] : 0
+            let c2 = i < components2.count ? components2[i] : 0
+            
+            if c1 > c2 { return true }
+            if c1 < c2 { return false }
+        }
+        
+        return false
+    }
 }

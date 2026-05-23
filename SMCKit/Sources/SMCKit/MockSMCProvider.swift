@@ -14,7 +14,7 @@ public final class MockSMCProvider: SMCProvider, @unchecked Sendable {
 
     public init() {}
 
-    public func readTemperatures() throws -> [SensorReading] {
+    public func readTemperatures(for groups: Set<SensorGroup>? = nil) throws -> [SensorReading] {
         if let error = shouldThrowError { throw error }
         return mockedSensors
     }

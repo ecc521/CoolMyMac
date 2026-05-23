@@ -49,14 +49,15 @@ struct GetProfileCommand: AsyncParsableCommand {
             let settings = profile.settings
             print("  Sensor sources:  \(settings.sources.map(\.rawValue).joined(separator: ", "))")
             print("  Aggregation:     \(settings.aggregation.rawValue)")
-            print("  Smoothing:       \(settings.smoothingWindowSeconds)s")
+            print("  Smoothing (Down): \(settings.spinDownTime)s")
+            print("  Smoothing (Up):   \(settings.spinUpTime)s")
 
             if profile.curve.points.isEmpty {
                 print("  Curve:           None (Apple manages fans)")
             } else {
                 print("  Curve:           \(profile.curve.points.count) breakpoints")
                 for point in profile.curve.points {
-                    print(String(format: "    %5.1f°C → %5.1f%%", point.celsius, point.rpmPercentage * 100))
+                    print(String(format: "    %5.1f°C → %5.1f%%", point.value, point.rpmPercentage * 100))
                 }
             }
             print()

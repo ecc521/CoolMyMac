@@ -50,6 +50,13 @@ struct PreferencesView: View {
             .padding(24)
         }
         .task { state.startRefreshing() }
+        .onAppear {
+            NSApp.activate(ignoringOtherApps: true)
+            for window in NSApp.windows where window.identifier?.rawValue == "preferences" {
+                window.makeKeyAndOrderFront(nil)
+                window.orderFrontRegardless()
+            }
+        }
     }
 }
 
@@ -64,6 +71,34 @@ struct GeneralPrefsView: View {
             Text("General")
                 .font(.title2).bold()
 
+            if state.updateChecker.updateAvailable {
+                HStack {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .foregroundStyle(.blue)
+                        .imageScale(.large)
+                    
+                    VStack(alignment: .leading) {
+                        Text("Update Available: v\(state.updateChecker.latestVersion)")
+                            .font(.headline)
+                        Text("A newer version of CoolMyMac is available on GitHub.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    if let url = state.updateChecker.releaseUrl {
+                        Button("Download") {
+                            NSWorkspace.shared.open(url)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+                .padding()
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(10)
+            }
+            
             GroupBox("Menu Bar") {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Launch CoolMyMac at login", isOn: Binding(
@@ -120,8 +155,8 @@ struct GeneralPrefsView: View {
             }
             
             GroupBox("Advanced") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Picker("Update Interval", selection: Binding(
+                Form {
+                    Picker("Update Interval:", selection: Binding(
                         get: { state.updateInterval },
                         set: { state.updateInterval = $0 }
                     )) {
@@ -130,16 +165,20 @@ struct GeneralPrefsView: View {
                         Text("3 seconds").tag(3.0)
                         Text("5 seconds").tag(5.0)
                     }
-                    .frame(width: 260)
 
-                    Picker("Decimal places", selection: Binding(
+                    Picker("Decimal places:", selection: Binding(
                         get: { state.decimalResolution },
                         set: { state.decimalResolution = $0 }
                     )) {
                         Text("0 (e.g. 45°C)").tag(0)
                         Text("1 (e.g. 45.1°C)").tag(1)
                     }
-                    .frame(width: 260)
+                    
+                    Toggle("Allow Unprivileged CLI", isOn: Binding(
+                        get: { state.allowUnprivilegedCLI },
+                        set: { state.setAllowUnprivilegedCLI($0) }
+                    ))
+                    .help("Allows standard terminal commands to change profiles without requiring sudo.")
                 }
                 .padding(4)
             }
@@ -230,7 +269,9 @@ struct ProfilesPrefsView: View {
 
                 // Detail panel
                 if let profile = selectedProfile {
-                    ProfileDetailView(profile: profile, state: state)
+                    ProfileDetailView(profile: profile, state: state) {
+                        deleteSelectedProfile()
+                    }
                 } else {
                     Text("Select a profile to view details")
                         .foregroundStyle(.tertiary)
@@ -247,8 +288,8 @@ struct ProfilesPrefsView: View {
             displayName: "New Profile",
             isBuiltIn: false,
             curve: FanCurve(points: [
-                CurvePoint(celsius: 50.0, rpmPercentage: 0.3),
-                CurvePoint(celsius: 85.0, rpmPercentage: 1.0)
+                CurvePoint(value: 50.0, rpmPercentage: 0.3),
+                CurvePoint(value: 85.0, rpmPercentage: 1.0)
             ]),
             settings: ProfileSettings()
         )
@@ -261,10 +302,13 @@ struct ProfilesPrefsView: View {
 
     private func deleteSelectedProfile() {
         guard let p = selectedProfile, !p.isBuiltIn else { return }
+        
+        // Optimistic UI update for instant feedback
+        selectedProfile = nil
+        
         Task {
             try? await state.client.deleteCustomProfile(id: p.id)
             await MainActor.run {
-                selectedProfile = nil
                 state.startRefreshing()
             }
         }
@@ -302,12 +346,13 @@ struct ProfileListRow: View {
 struct ProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
+    var onDelete: (() -> Void)? = nil
 
     var body: some View {
         if profile.isBuiltIn {
             BuiltInProfileDetailView(profile: profile, state: state)
         } else {
-            CustomProfileDetailView(profile: profile, state: state)
+            CustomProfileDetailView(profile: profile, state: state, onDelete: onDelete)
                 .id(profile.id) // Force view redraw when selecting a different custom profile
         }
     }
@@ -365,7 +410,7 @@ struct BuiltInProfileDetailView: View {
                 VStack(spacing: 4) {
                     ForEach(Array(profile.curve.points.enumerated()), id: \.offset) { _, point in
                         HStack {
-                            Text(String(format: "%.0f°C", point.celsius))
+                            Text(String(format: "%.0f°C", point.value))
                                 .font(.system(size: 12, design: .monospaced))
                                 .frame(width: 48, alignment: .leading)
                             CurveBar(percentage: point.rpmPercentage)
@@ -386,36 +431,44 @@ struct BuiltInProfileDetailView: View {
 struct CustomProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
+    var onDelete: (() -> Void)? = nil
 
     @State private var displayName: String
     @State private var editablePoints: [EditablePoint]
     @State private var spinUpTime: Double
     @State private var spinDownTime: Double
+    @State private var selectedSources: Set<SensorGroup>
+    @State private var aggregation: AggregationMode
 
     struct EditablePoint: Identifiable {
         let id = UUID()
-        var celsius: Double
+        var value: Double
         var rpmPercentage: Double
     }
 
-    init(profile: FanProfile, state: AppState) {
+    init(profile: FanProfile, state: AppState, onDelete: (() -> Void)? = nil) {
         self.profile = profile
         self.state = state
+        self.onDelete = onDelete
         self._displayName = State(initialValue: profile.displayName)
-        let mapped = profile.curve.points.map { EditablePoint(celsius: $0.celsius, rpmPercentage: $0.rpmPercentage) }
+        let mapped = profile.curve.points.map { EditablePoint(value: $0.value, rpmPercentage: $0.rpmPercentage) }
         self._editablePoints = State(initialValue: mapped)
         self._spinUpTime = State(initialValue: profile.settings.spinUpTime)
         self._spinDownTime = State(initialValue: profile.settings.spinDownTime)
+        self._selectedSources = State(initialValue: Set(profile.settings.sources))
+        self._aggregation = State(initialValue: profile.settings.aggregation)
     }
 
     private var hasChanges: Bool {
         if displayName != profile.displayName { return true }
         if spinUpTime != profile.settings.spinUpTime { return true }
         if spinDownTime != profile.settings.spinDownTime { return true }
+        if aggregation != profile.settings.aggregation { return true }
+        if Set(profile.settings.sources) != selectedSources { return true }
         if editablePoints.count != profile.curve.points.count { return true }
         for (i, ep) in editablePoints.enumerated() {
             let op = profile.curve.points[i]
-            if ep.celsius != op.celsius || ep.rpmPercentage != op.rpmPercentage { return true }
+            if ep.value != op.value || ep.rpmPercentage != op.rpmPercentage { return true }
         }
         return false
     }
@@ -426,17 +479,18 @@ struct CustomProfileDetailView: View {
                 TextField("Profile Name", text: $displayName)
                     .font(.headline)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
+                    .frame(width: 140)
 
                 Spacer()
 
                 if hasChanges {
-                    Button("Save") {
-                        let sorted = editablePoints.sorted(by: { $0.celsius < $1.celsius })
-                        let newPoints = sorted.map { CurvePoint(celsius: $0.celsius, rpmPercentage: $0.rpmPercentage) }
+                    Button("Save Changes") {
+                        let sorted = editablePoints.sorted(by: { $0.value < $1.value })
+                        let newPoints = sorted.map { CurvePoint(value: $0.value, rpmPercentage: $0.rpmPercentage) }
+                        let finalSources = selectedSources.isEmpty ? [.cpuCore] : Array(selectedSources)
                         let newSettings = ProfileSettings(
-                            sources: profile.settings.sources,
-                            aggregation: profile.settings.aggregation,
+                            sources: finalSources,
+                            aggregation: aggregation,
                             spinUpTime: spinUpTime,
                             spinDownTime: spinDownTime
                         )
@@ -452,18 +506,57 @@ struct CustomProfileDetailView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.green)
                     .controlSize(.small)
+                } else {
+                    Button("Activate") {
+                        state.setProfile(profile)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+                    .disabled(state.activeProfile.id == profile.id)
+                    .controlSize(.small)
+                    
+                    if let onDelete = onDelete {
+                        Button(role: .destructive, action: onDelete) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        .controlSize(.small)
+                    }
                 }
-
-                Button("Activate") {
-                    state.setProfile(profile)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-                .disabled(state.activeProfile.id == profile.id || hasChanges)
-                .controlSize(.small)
             }
-            
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                GridRow {
+                    Text("Sensor Targets").foregroundStyle(.secondary).font(.system(size: 12))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach([SensorGroup.cpuCore, .gpu, .battery, .enclosure, .vrm, .nand, .wireless], id: \.self) { group in
+                                Toggle(group.rawValue, isOn: Binding(
+                                    get: { selectedSources.contains(group) },
+                                    set: { isOn in
+                                        if isOn {
+                                            selectedSources.insert(group)
+                                        } else {
+                                            selectedSources.remove(group)
+                                        }
+                                    }
+                                ))
+                                .toggleStyle(.button)
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                }
+                GridRow {
+                    Text("Aggregation Mode").foregroundStyle(.secondary).font(.system(size: 12))
+                    Picker("", selection: $aggregation) {
+                        Text("Max (Hottest)").tag(AggregationMode.max)
+                        Text("Average").tag(AggregationMode.average)
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+                }
                 GridRow {
                     Text("Spin Up Time").foregroundStyle(.secondary).font(.system(size: 12))
                     HStack {
@@ -491,7 +584,7 @@ struct CustomProfileDetailView: View {
             VStack(spacing: 8) {
                 ForEach($editablePoints.indices, id: \.self) { i in
                     HStack {
-                        TextField("Temp", value: $editablePoints[i].celsius, format: .number)
+                        TextField("Temp", value: $editablePoints[i].value, format: .number)
                             .frame(width: 50)
                             .textFieldStyle(.roundedBorder)
                         Text("°C")
@@ -525,9 +618,9 @@ struct CustomProfileDetailView: View {
                 }
 
                 Button(action: {
-                    let lastT = editablePoints.last?.celsius ?? 40.0
+                    let lastT = editablePoints.last?.value ?? 40.0
                     let lastP = editablePoints.last?.rpmPercentage ?? 0.3
-                    editablePoints.append(EditablePoint(celsius: lastT + 10, rpmPercentage: lastP + 0.1))
+                    editablePoints.append(EditablePoint(value: lastT + 10, rpmPercentage: lastP + 0.1))
                 }) {
                     Label("Add Point", systemImage: "plus.circle")
                 }
@@ -564,62 +657,118 @@ struct CurveBar: View {
 struct SensorsPrefsView: View {
     var state: AppState
     @AppStorage("decimalResolution") private var decimalResolution: Int = 0
+    @State private var expandedGroups: Set<SensorGroup> = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Live Sensors")
-                .font(.title2).bold()
-
-            if state.sensors.isEmpty {
-                Text("Waiting for sensor data from daemon...")
-                    .foregroundStyle(.tertiary)
-            } else {
-                let grouped = Dictionary(grouping: state.sensors, by: \.group)
-                let order: [SensorGroup] = [.cpuCore, .gpu, .nand, .other]
-
-                ForEach(order, id: \.self) { group in
-                    if let sensors = grouped[group] {
-                        Section {
-                            ForEach(sensors.sorted(by: { $0.celsius > $1.celsius })) { s in
-                                HStack {
-                                    Text(s.name).font(.system(size: 12))
-                                    Spacer()
-                                    Text(String(format: decimalResolution == 1 ? "%.1f°C" : "%.0f°C", s.celsius))
-                                        .font(.system(size: 12, design: .monospaced))
-                                        .foregroundStyle(s.celsius > 80 ? .orange : .primary)
-                                }
-                                .padding(.vertical, 2)
-                            }
-                        } header: {
-                            HStack {
-                                Text(group.rawValue)
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                                    .textCase(.uppercase)
-                                
-                                Spacer()
-                                
-                                Toggle("Use for fan control", isOn: Binding(
-                                    get: { state.activeSensors.contains(group) },
-                                    set: { isOn in
-                                        if isOn {
-                                            state.activeSensors.insert(group)
-                                        } else if state.activeSensors.count > 1 {
-                                            state.activeSensors.remove(group)
-                                        }
-                                    }
-                                ))
-                                .controlSize(.mini)
-                                .tint(.blue)
-                            }
-                            .padding(.top, 8)
-                            .padding(.bottom, 4)
-                        }
+            HStack(alignment: .lastTextBaseline) {
+                Text("Live Sensors")
+                    .font(.title2).bold()
+                
+                Spacer()
+                
+                if let lastUpdate = state.lastSensorsUpdate {
+                    TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
+                        let elapsed = Int(timeline.date.timeIntervalSince(lastUpdate))
+                        let timeString = elapsed == 0 ? "just now" : "\(elapsed)s ago"
+                        Text("Updated \(timeString)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
 
-            Spacer()
+            if state.sensors.isEmpty {
+                if state.daemonStatus == .installed {
+                    Text("Waiting for sensor data from daemon...")
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text("Daemon required for sensors. Please install the daemon in the General tab.")
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer()
+            } else {
+                List {
+                    let grouped = Dictionary(grouping: state.sensors, by: \.group)
+                    let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .vrm, .wireless, .battery, .enclosure, .nand, .other]
+
+                    ForEach(order, id: \.self) { group in
+                        if let sensors = grouped[group] {
+                            let maxValue = sensors.map(\.value).max() ?? 0.0
+                            let minValue = sensors.map(\.value).min() ?? 0.0
+                            let isPowerOrClock = (group == .power || group == .clockSpeed)
+                            let unit = sensors.first?.unit ?? .celsius
+                            
+                            DisclosureGroup(
+                                isExpanded: Binding(
+                                    get: { expandedGroups.contains(group) },
+                                    set: { if $0 { expandedGroups.insert(group) } else { expandedGroups.remove(group) } }
+                                )
+                            ) {
+                                ForEach(sensors.sorted(by: { $0.value > $1.value })) { s in
+                                    SensorRowView(
+                                        sensor: s,
+                                        group: group,
+                                        state: state,
+                                        decimalResolution: decimalResolution
+                                    )
+                                }
+                            } label: {
+                                HStack {
+                                    HStack {
+                                        Text(group.rawValue)
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .textCase(.uppercase)
+                                        
+                                        Spacer()
+                                        
+                                        Text(String(format: rangeFormat(for: unit), minValue, maxValue))
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                            .padding(.trailing, 8)
+                                    }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        if expandedGroups.contains(group) {
+                                            expandedGroups.remove(group)
+                                        } else {
+                                            expandedGroups.insert(group)
+                                        }
+                                    }
+                                    
+                                    if !isPowerOrClock {
+                                        Toggle("Use for fan control", isOn: Binding(
+                                            get: { state.activeSensors.contains(group) },
+                                            set: { isOn in
+                                                if isOn {
+                                                    state.activeSensors.insert(group)
+                                                } else if state.activeSensors.count > 1 {
+                                                    state.activeSensors.remove(group)
+                                                }
+                                            }
+                                        ))
+                                        .controlSize(.mini)
+                                        .tint(.blue)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                }
+                .listStyle(.sidebar)
+                .cornerRadius(8)
+            }
+        }
+        .onAppear { state.isViewingAllSensors = true }
+        .onDisappear { state.isViewingAllSensors = false }
+    }
+    
+    private func rangeFormat(for unit: SensorUnit) -> String {
+        switch unit {
+        case .celsius: return decimalResolution == 1 ? "%.1f - %.1f°C" : "%.0f - %.0f°C"
+        case .watts: return "%.2f - %.2f W"
+        case .megahertz: return "%.0f - %.0f MHz"
         }
     }
 }
@@ -643,5 +792,57 @@ struct AboutPrefsView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+struct SensorRowView: View {
+    let sensor: SensorReading
+    let group: SensorGroup
+    @Bindable var state: AppState
+    let decimalResolution: Int
+    
+    private var formatString: String {
+        switch sensor.unit {
+        case .celsius: return decimalResolution == 1 ? "%.1f°C" : "%.0f°C"
+        case .watts: return "%.2f W"
+        case .megahertz: return "%.0f MHz"
+        }
+    }
+    
+    var body: some View {
+        let isPowerOrClock = (group == .power || group == .clockSpeed)
+        let isExcluded = !isPowerOrClock && (state.excludedSensors.contains(sensor.name) || !state.activeSensors.contains(group))
+        let isHot = sensor.unit == .celsius && sensor.value > 80
+        
+        HStack {
+            if !isPowerOrClock {
+                Toggle("", isOn: Binding(
+                    get: { !state.excludedSensors.contains(sensor.name) },
+                    set: { isOn in
+                        if isOn { state.excludedSensors.remove(sensor.name) }
+                        else { state.excludedSensors.insert(sensor.name) }
+                    }
+                ))
+                .labelsHidden()
+                .controlSize(.mini)
+                .tint(.blue)
+                .disabled(!state.activeSensors.contains(group))
+            } else {
+                // Placeholder to keep alignment
+                Image(systemName: "circle").opacity(0).frame(width: 14)
+            }
+            
+            Text(sensor.name)
+                .font(.system(size: 12))
+                .opacity(isExcluded ? 0.5 : 1.0)
+                
+            Spacer()
+            
+            Text(String(format: formatString, sensor.value))
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(isHot ? Color.orange : Color.primary)
+                .opacity(isExcluded ? 0.5 : 1.0)
+        }
+        .padding(.vertical, 2)
     }
 }

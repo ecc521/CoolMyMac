@@ -84,6 +84,10 @@ public final class CoolMyMacClient: @unchecked Sendable {
         try await xpcCall { proxy, reply in proxy.readSensors(withReply: reply) }
     }
 
+    public func readAllSensors() async throws -> [SensorReading] {
+        try await xpcCall { proxy, reply in proxy.readAllSensors(withReply: reply) }
+    }
+
     public func readFans() async throws -> [FanStatus] {
         try await xpcCall { proxy, reply in proxy.readFans(withReply: reply) }
     }
@@ -170,7 +174,7 @@ public final class CoolMyMacClient: @unchecked Sendable {
         }
     }
 
-    public func setActiveSensors(_ groups: [SensorGroup]) async throws {
+    public func setActiveSensors(_ groups: [SensorGroup], excludedSensors: [String]) async throws {
         let strings = groups.map(\.rawValue)
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             var hasResumed = false
@@ -178,25 +182,25 @@ public final class CoolMyMacClient: @unchecked Sendable {
                 if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
             }) else { return }
             
-            proxy.setActiveSensors(strings) { error in
+            proxy.setActiveSensors(strings, excludedSensors: excludedSensors) { error in
                 if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume() } }
             }
         }
     }
 
-    public func getActiveSensors() async throws -> [SensorGroup] {
-        let strings: [String] = try await withCheckedThrowingContinuation { cont in
+    public func getActiveSensors() async throws -> (groups: [SensorGroup], excludedSensors: [String]) {
+        let result: ([String], [String]) = try await withCheckedThrowingContinuation { cont in
             var hasResumed = false
             guard let proxy = getProxy(errorHandler: { error in
                 if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
             }) else { return }
             
-            proxy.getActiveSensors { strings, error in
-                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume(returning: strings) }
+            proxy.getActiveSensors { groups, excluded, error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume(returning: (groups, excluded)) }
                 }
             }
         }
-        return strings.compactMap(SensorGroup.init(rawValue:))
+        return (result.0.compactMap(SensorGroup.init(rawValue:)), result.1)
     }
 
     public func daemonVersion() async throws -> String {
@@ -208,6 +212,32 @@ public final class CoolMyMacClient: @unchecked Sendable {
             
             proxy.daemonVersion { version in
                 if !hasResumed { hasResumed = true; cont.resume(returning: version) }
+            }
+        }
+    }
+
+    public func getAllowUnprivilegedCLI() async throws -> Bool {
+        try await withCheckedThrowingContinuation { cont in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.getAllowUnprivilegedCLI { allow, error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume(returning: allow) } }
+            }
+        }
+    }
+
+    public func setAllowUnprivilegedCLI(_ allow: Bool) async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.setAllowUnprivilegedCLI(allow) { error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume() } }
             }
         }
     }

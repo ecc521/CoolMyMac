@@ -22,16 +22,14 @@ public final class SMCController {
     /// Initializes the controller, selecting the appropriate backend.
     /// - Throws: `SMCError.unsupportedHardware` if no suitable backend is available.
     public init() throws {
-        // Phase 4: Apple Silicon backend will be selected here based on arch detection.
-        // For now, always use the Intel AppleSMC backend.
-        self.provider = try AppleSMC()
+        self.provider = try AppleSiliconSMC()
     }
 
     // MARK: - Temperature
 
     /// All available temperature sensor readings, filtered to non-zero values.
-    public func readTemperatures() throws -> [SensorReading] {
-        try provider.readTemperatures()
+    public func readTemperatures(for groups: Set<SensorGroup>? = nil) throws -> [SensorReading] {
+        try provider.readTemperatures(for: groups)
     }
 
     // MARK: - Fan Control
@@ -76,15 +74,16 @@ public final class SMCController {
     /// applying aggregation (MAX or AVERAGE) across the configured sensor groups.
     public func drivingTemperature(for settings: ProfileSettings) throws -> Double {
         let readings = try readTemperatures()
-        let filtered = readings.filter { settings.sources.contains($0.group) }
+        let excluded = Set(settings.excludedSensors)
+        let filtered = readings.filter { settings.sources.contains($0.group) && !excluded.contains($0.name) }
 
         guard !filtered.isEmpty else { return 0.0 }
 
         switch settings.aggregation {
         case .max:
-            return filtered.map(\.celsius).max() ?? 0.0
+            return filtered.map(\.value).max() ?? 0.0
         case .average:
-            return filtered.map(\.celsius).reduce(0, +) / Double(filtered.count)
+            return filtered.map(\.value).reduce(0, +) / Double(filtered.count)
         }
     }
 }

@@ -26,6 +26,10 @@
     <key>KeepAlive</key>
     <true/>
 
+    <!-- Give the daemon high scheduling priority -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
     <!-- Standard I/O to system log -->
     <key>StandardOutPath</key>
     <string>/var/log/com.coolmymac.daemon.log</string>

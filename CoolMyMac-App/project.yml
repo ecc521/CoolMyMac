@@ -27,8 +27,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.coolmymac.app.daemon
         INFOPLIST_FILE: Daemon/Info.plist
         CODE_SIGN_ENTITLEMENTS: Daemon/CoolMyMacDaemon.entitlements
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "Developer ID Application"
+        CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: "G24X82SAVJ"
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_VERSION: 6.0
@@ -48,19 +47,20 @@ targets:
       - package: SMCKit
       - target: CoolMyMac-Daemon
         embed: false   # Natively embedded via copyFiles phase below
-    copyFiles:
-      - destination: wrapper
-        subpath: Contents/Library/LaunchDaemons
-        files:
-          - ${BUILT_PRODUCTS_DIR}/CoolMyMac-Daemon
-          - Resources/com.coolmymac.app.daemon.plist
+    postBuildScripts:
+      - name: "Embed Daemon"
+        script: |
+          mkdir -p "${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchDaemons"
+          rm -f "${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchDaemons/com.coolmymac.app.daemon.plist"
+          rm -f "${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchDaemons/CoolMyMac-Daemon"
+          cp "$SRCROOT/App/Resources/com.coolmymac.app.daemon.plist" "${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchDaemons/com.coolmymac.app.daemon.plist" || cp "$SRCROOT/Resources/com.coolmymac.app.daemon.plist" "${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchDaemons/com.coolmymac.app.daemon.plist"
+          cp "${BUILT_PRODUCTS_DIR}/CoolMyMac-Daemon" "${CONFIGURATION_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchDaemons/CoolMyMac-Daemon"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.coolmymac.app
         INFOPLIST_FILE: App/Info.plist
         CODE_SIGN_ENTITLEMENTS: App/CoolMyMac.entitlements
-        CODE_SIGN_STYLE: Manual
-        CODE_SIGN_IDENTITY: "Developer ID Application"
+        CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: "G24X82SAVJ"
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_VERSION: 6.0

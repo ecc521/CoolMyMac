@@ -34,6 +34,7 @@ struct PopoverView: View {
                     NSApp.activate(ignoringOtherApps: true)
                     for window in NSApp.windows where window.identifier?.rawValue == "preferences" {
                         window.makeKeyAndOrderFront(nil)
+                        window.orderFrontRegardless()
                     }
                 }
             }
@@ -70,6 +71,25 @@ struct PopoverView: View {
                     Spacer()
                 }
                 .padding(.horizontal, 14)
+                .padding(.top, 12)
+            }
+            
+            // MARK: 4. Clock Speeds
+            let clocks = state.sensors.filter { $0.group == .clockSpeed }
+            if !clocks.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 65), spacing: 8)], spacing: 8) {
+                    ForEach(clocks) { clock in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(clock.name.uppercased())
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.secondary)
+                            Text("\(Int(clock.value.rounded())) MHz")
+                                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.horizontal, 16)
                 .padding(.top, 12)
             }
 
@@ -271,7 +291,7 @@ struct DaemonWarningBar: View {
                     Task { try? await DaemonManager.shared.repairDaemon() }
                 }
             } else {
-                Text("Fan control is inactive.")
+                Text("Daemon not installed.")
                     .font(.system(size: 11))
                     .foregroundStyle(.primary)
                 Spacer()
@@ -290,7 +310,7 @@ struct DaemonWarningBar: View {
 }
 
 // MARK: - FanProfile Identifiable
-extension FanProfile: @retroactive Identifiable {}
+// Extension removed to fix redundant conformance warning
 
 // MARK: - Hover Components
 
