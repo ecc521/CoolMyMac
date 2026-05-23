@@ -269,9 +269,11 @@ struct ProfilesPrefsView: View {
 
                 // Detail panel
                 if let profile = selectedProfile {
-                    ProfileDetailView(profile: profile, state: state) {
+                    ProfileDetailView(profile: profile, state: state, onDelete: {
                         deleteSelectedProfile()
-                    }
+                    }, onSave: { newProfile in
+                        selectedProfile = newProfile
+                    })
                 } else {
                     Text("Select a profile to view details")
                         .foregroundStyle(.tertiary)
@@ -347,12 +349,13 @@ struct ProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
     var onDelete: (() -> Void)? = nil
+    var onSave: ((FanProfile) -> Void)? = nil
 
     var body: some View {
         if profile.isBuiltIn {
             BuiltInProfileDetailView(profile: profile, state: state)
         } else {
-            CustomProfileDetailView(profile: profile, state: state, onDelete: onDelete)
+            CustomProfileDetailView(profile: profile, state: state, onSave: onSave, onDelete: onDelete)
                 .id(profile.id) // Force view redraw when selecting a different custom profile
         }
     }
@@ -431,6 +434,7 @@ struct BuiltInProfileDetailView: View {
 struct CustomProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
+    var onSave: ((FanProfile) -> Void)? = nil
     var onDelete: (() -> Void)? = nil
 
     @State private var displayName: String
@@ -446,9 +450,10 @@ struct CustomProfileDetailView: View {
         var rpmPercentage: Double
     }
 
-    init(profile: FanProfile, state: AppState, onDelete: (() -> Void)? = nil) {
+    init(profile: FanProfile, state: AppState, onSave: ((FanProfile) -> Void)? = nil, onDelete: (() -> Void)? = nil) {
         self.profile = profile
         self.state = state
+        self.onSave = onSave
         self.onDelete = onDelete
         self._displayName = State(initialValue: profile.displayName)
         let mapped = profile.curve.points.map { EditablePoint(value: $0.value, rpmPercentage: $0.rpmPercentage) }
@@ -501,7 +506,13 @@ struct CustomProfileDetailView: View {
                             curve: FanCurve(points: newPoints),
                             settings: newSettings
                         )
-                        Task { try? await state.client.saveCustomProfile(newProfile); state.startRefreshing() }
+                        Task { 
+                            try? await state.client.saveCustomProfile(newProfile)
+                            await MainActor.run { 
+                                state.startRefreshing()
+                                onSave?(newProfile)
+                            }
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.green)
