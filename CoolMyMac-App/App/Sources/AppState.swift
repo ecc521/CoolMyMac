@@ -216,7 +216,7 @@ final class AppState {
                 activeSensors = Set(globalSensors?.groups ?? [.cpuCore, .gpu])
                 excludedSensors = Set(globalSensors?.excludedSensors ?? [])
                 let fetchedCustom = (try? await c) ?? customProfiles
-                let order = UserDefaults.standard.stringArray(forKey: "ProfileOrder") ?? []
+                let order = UserDefaults.standard.stringArray(forKey: "ProfileOrder") ?? ["balanced", "performance", "max"]
                 customProfiles = fetchedCustom.sorted { a, b in
                     let aIdx = order.firstIndex(of: a.id) ?? Int.max
                     let bIdx = order.firstIndex(of: b.id) ?? Int.max
