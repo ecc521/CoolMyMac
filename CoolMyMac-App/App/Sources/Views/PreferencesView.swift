@@ -384,35 +384,43 @@ struct BuiltInProfileDetailView: View {
                 .controlSize(.small)
             }
 
-            // Settings summary
-            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-                GridRow {
-                    Text("Sensor sources").foregroundStyle(.secondary).font(.system(size: 12))
-                    Text(profile.settings.sources.map(\.rawValue).joined(separator: ", ")).font(.system(size: 12))
-                }
-                GridRow {
-                    Text("Aggregation").foregroundStyle(.secondary).font(.system(size: 12))
-                    Text(profile.settings.aggregation.rawValue).font(.system(size: 12))
-                }
-                GridRow {
-                    Text("Spin Up Smoothing").foregroundStyle(.secondary).font(.system(size: 12))
-                    Text("\(profile.settings.spinUpTime, specifier: "%.1f")s").font(.system(size: 12))
-                }
-                GridRow {
-                    Text("Spin Down Smoothing").foregroundStyle(.secondary).font(.system(size: 12))
-                    Text("\(profile.settings.spinDownTime, specifier: "%.1f")s").font(.system(size: 12))
-                }
-            }
-
-            // Curve
             if profile.curve.points.isEmpty {
-                Text("No fan curve — Apple manages fans automatically.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Hardware Managed")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    
+                    Text("This profile returns full thermal control to macOS. The daemon will monitor sensors in the background but will not apply any fan overrides.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.top, 8)
             } else {
+                // Settings summary
+                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+                    GridRow {
+                        Text("Sensor sources").foregroundStyle(.secondary).font(.system(size: 12))
+                        Text(profile.settings.sources.map(\.rawValue).joined(separator: ", ")).font(.system(size: 12))
+                    }
+                    GridRow {
+                        Text("Aggregation").foregroundStyle(.secondary).font(.system(size: 12))
+                        Text(profile.settings.aggregation.rawValue).font(.system(size: 12))
+                    }
+                    GridRow {
+                        Text("Spin Up Smoothing").foregroundStyle(.secondary).font(.system(size: 12))
+                        Text("\(profile.settings.spinUpTime, specifier: "%.1f")s").font(.system(size: 12))
+                    }
+                    GridRow {
+                        Text("Spin Down Smoothing").foregroundStyle(.secondary).font(.system(size: 12))
+                        Text("\(profile.settings.spinDownTime, specifier: "%.1f")s").font(.system(size: 12))
+                    }
+                }
+
                 Text("Fan Curve")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .padding(.top, 8)
 
                 VStack(spacing: 4) {
                     ForEach(Array(profile.curve.points.enumerated()), id: \.offset) { _, point in
