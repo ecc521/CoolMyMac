@@ -64,12 +64,42 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
     }
 
     // MARK: - Private helpers
+    
+    nonisolated(unsafe) static var activeConnectionCount = 0
+    nonisolated(unsafe) static let connectionLock = NSLock()
 
     private func accept(_ connection: NSXPCConnection) -> Bool {
         connection.exportedInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
         connection.exportedObject = XPCHandler()
+        
+        DaemonXPCServer.connectionLock.lock()
+        DaemonXPCServer.activeConnectionCount += 1
+        xpcLogger.info("Client connected. Total clients: \(DaemonXPCServer.activeConnectionCount, privacy: .public)")
+        DaemonXPCServer.connectionLock.unlock()
+        
+        connection.invalidationHandler = {
+            DaemonXPCServer.connectionLock.lock()
+            DaemonXPCServer.activeConnectionCount -= 1
+            xpcLogger.info("Client disconnected. Total clients: \(DaemonXPCServer.activeConnectionCount, privacy: .public)")
+            DaemonXPCServer.connectionLock.unlock()
+            
+            DaemonXPCServer.checkAutoSuspend()
+        }
+        
         connection.resume()
         return true
+    }
+    
+    static func checkAutoSuspend() {
+        DaemonXPCServer.connectionLock.lock()
+        let count = DaemonXPCServer.activeConnectionCount
+        DaemonXPCServer.connectionLock.unlock()
+        
+        let isSystemMode = ProfileStore.shared.getActiveProfile().curve.points.isEmpty
+        if isSystemMode && count == 0 {
+            xpcLogger.notice("Auto-suspending daemon: System profile active and 0 connected clients. launchd will automatically revive us when needed.")
+            exit(0)
+        }
     }
 
     /// Returns the effective UID of the connecting process.
@@ -145,6 +175,12 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
         do {
             try ProfileStore.shared.setActiveProfile(id: name)
             reply(nil)
+            
+            // Check if we just switched to System mode and should auto-suspend
+            // We delay execution slightly so the reply makes it back to the client before we exit.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                DaemonXPCServer.checkAutoSuspend()
+            }
         } catch {
             xpcLogger.error("setActiveProfile failed: \(error.localizedDescription, privacy: .public)")
             reply(error)
