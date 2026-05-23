@@ -42,7 +42,7 @@
 		901F4B96F741B8758B355216 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
 		978B42FA4BAFD0C0B65A9620 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		9A442DDDFBB8EEC644106BBE /* CoolMyMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoolMyMacApp.swift; sourceTree = "<group>"; };
-		A4A3D3950C5FAC3A81BE709D /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = App/Assets.xcassets; sourceTree = "<group>"; };
+		A4A3D3950C5FAC3A81BE709D /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Assets.xcassets; sourceTree = "<group>"; };
 		A80C2E5366027B87D3766150 /* ThermalController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThermalController.swift; sourceTree = "<group>"; };
 		B0FB81C64CF53F0E35305179 /* DaemonXPCServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonXPCServer.swift; sourceTree = "<group>"; };
 		C978846B2C2F13F0A1011010 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
