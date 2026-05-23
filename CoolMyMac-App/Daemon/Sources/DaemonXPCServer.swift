@@ -54,13 +54,9 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
             return accept(newConnection)
         }
 
-        // Denied — log a hint so it shows up in Console.app / unified logging.
-        xpcLogger.warning("""
-            XPC connection denied — unprivileged non-app client \
-            (PID: \(pid, privacy: .public), UID: \(uid, privacy: .public)). \
-            Use 'sudo coolmymac' or enable Allow Unprivileged CLI in CoolMyMac Preferences.
-            """)
-        return false
+        // Default: Allow read-only access for unprivileged non-app clients
+        xpcLogger.info("XPC connection accepted — read-only client (PID: \(pid, privacy: .public), UID: \(uid, privacy: .public))")
+        return accept(newConnection, canModify: false)
     }
 
     // MARK: - Private helpers
@@ -68,9 +64,9 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
     nonisolated(unsafe) static var activeConnectionCount = 0
     static let connectionLock = NSLock()
 
-    private func accept(_ connection: NSXPCConnection) -> Bool {
+    private func accept(_ connection: NSXPCConnection, canModify: Bool = true) -> Bool {
         connection.exportedInterface = NSXPCInterface(with: CoolMyMacXPCProtocol.self)
-        connection.exportedObject = XPCHandler()
+        connection.exportedObject = XPCHandler(canModify: canModify)
         
         DaemonXPCServer.connectionLock.lock()
         DaemonXPCServer.activeConnectionCount += 1
@@ -136,8 +132,14 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
 /// Handles XPC calls from clients (App, CLI). All methods run on the connection's private queue.
 private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
 
+    private let canModify: Bool
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    
+    init(canModify: Bool) {
+        self.canModify = canModify
+        super.init()
+    }
 
     // MARK: - Version
     
@@ -172,6 +174,10 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     }
 
     func setActiveProfile(_ name: String, withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied. Modifying profiles requires sudo or enabling Unprivileged CLI in the app."]))
+            return
+        }
         do {
             try ProfileStore.shared.setActiveProfile(id: name)
             reply(nil)
@@ -202,6 +208,10 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     }
 
     func saveCustomProfile(_ profileData: Data, withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied."]))
+            return
+        }
         do {
             let profile = try decoder.decode(FanProfile.self, from: profileData)
             try ProfileStore.shared.save(profile)
@@ -213,6 +223,10 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     }
 
     func deleteCustomProfile(_ name: String, withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied."]))
+            return
+        }
         do {
             try ProfileStore.shared.delete(id: name)
             reply(nil)
@@ -231,6 +245,10 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     // MARK: Settings
     
     func setUpdateInterval(_ interval: Double, withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied."]))
+            return
+        }
         UserDefaults(suiteName: "com.coolmymac.daemon")?.set(interval, forKey: "updateInterval")
         ThermalController.shared.setPollInterval(interval)
         reply(nil)
@@ -245,6 +263,10 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     // MARK: - Global Sensor Selection
 
     func setActiveSensors(_ groups: [String], excludedSensors: [String], withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied."]))
+            return
+        }
         UserDefaults(suiteName: "com.coolmymac.daemon")?.set(groups, forKey: "activeSensors")
         UserDefaults(suiteName: "com.coolmymac.daemon")?.set(excludedSensors, forKey: "excludedSensors")
         reply(nil)
