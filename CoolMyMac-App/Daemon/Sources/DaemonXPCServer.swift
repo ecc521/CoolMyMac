@@ -109,6 +109,12 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
+    // MARK: - Version
+    
+    func getDaemonVersion(withReply reply: @escaping (String) -> Void) {
+        reply(daemonVersionString)
+    }
+
     // MARK: Sensors
 
     func readSensors(withReply reply: @escaping (Data?, Error?) -> Void) {

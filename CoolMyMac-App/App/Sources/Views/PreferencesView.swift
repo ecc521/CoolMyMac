@@ -528,23 +528,21 @@ struct CustomProfileDetailView: View {
             Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
                 GridRow {
                     Text("Sensor Targets").foregroundStyle(.secondary).font(.system(size: 12))
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach([SensorGroup.cpuCore, .gpu, .battery, .enclosure, .vrm, .nand, .wireless], id: \.self) { group in
-                                Toggle(group.rawValue, isOn: Binding(
-                                    get: { selectedSources.contains(group) },
-                                    set: { isOn in
-                                        if isOn {
-                                            selectedSources.insert(group)
-                                        } else {
-                                            selectedSources.remove(group)
-                                        }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach([SensorGroup.cpuCore, .gpu, .battery, .enclosure, .vrm, .nand, .wireless], id: \.self) { group in
+                            Toggle(group.rawValue, isOn: Binding(
+                                get: { selectedSources.contains(group) },
+                                set: { isOn in
+                                    if isOn {
+                                        selectedSources.insert(group)
+                                    } else {
+                                        selectedSources.remove(group)
                                     }
-                                ))
-                                .toggleStyle(.button)
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                            }
+                                }
+                            ))
+                            .toggleStyle(.button)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
                     }
                 }
@@ -558,7 +556,7 @@ struct CustomProfileDetailView: View {
                     .frame(width: 140)
                 }
                 GridRow {
-                    Text("Spin Up Time").foregroundStyle(.secondary).font(.system(size: 12))
+                    Text("Spin Up Time (EMA)").foregroundStyle(.secondary).font(.system(size: 12))
                     HStack {
                         TextField("Sec", value: $spinUpTime, format: .number)
                             .textFieldStyle(.roundedBorder).frame(width: 40)
@@ -567,7 +565,7 @@ struct CustomProfileDetailView: View {
                     }
                 }
                 GridRow {
-                    Text("Spin Down Time").foregroundStyle(.secondary).font(.system(size: 12))
+                    Text("Spin Down Time (EMA)").foregroundStyle(.secondary).font(.system(size: 12))
                     HStack {
                         TextField("Sec", value: $spinDownTime, format: .number)
                             .textFieldStyle(.roundedBorder).frame(width: 40)

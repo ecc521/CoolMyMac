@@ -100,6 +100,21 @@ public final class CoolMyMacClient: @unchecked Sendable {
         try await xpcCall { proxy, reply in proxy.listProfiles(withReply: reply) }
     }
     
+    // MARK: - Version
+    
+    public func getDaemonVersion() async throws -> String {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<String, Error>) in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.getDaemonVersion { version in
+                if !hasResumed { hasResumed = true; cont.resume(returning: version) }
+            }
+        }
+    }
+    
     public func getCustomProfiles() async throws -> [FanProfile] {
         try await xpcCall { proxy, reply in proxy.getCustomProfiles(withReply: reply) }
     }

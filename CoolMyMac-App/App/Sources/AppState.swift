@@ -156,6 +156,7 @@ final class AppState {
             }
         }
     }
+    private var hasCheckedDaemonVersion = false
 
     func refresh() {
         Task { @MainActor in
@@ -173,6 +174,18 @@ final class AppState {
             logger.info("Refreshing... daemonStatus=\(String(describing: self.daemonStatus)) reachable=\(isReachable)")
             
             if daemonStatus == .installed && isReachable {
+                if !hasCheckedDaemonVersion {
+                    hasCheckedDaemonVersion = true
+                    if let dVersion = try? await client.getDaemonVersion(),
+                       let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                       dVersion != appVersion {
+                        logger.info("Daemon version mismatch (\(dVersion) vs app \(appVersion)). Auto-repairing daemon...")
+                        try? await DaemonManager.shared.repairDaemon()
+                        isRefreshing = false
+                        return
+                    }
+                }
+                
                 async let s = isViewingAllSensors ? client.readAllSensors() : client.readSensors()
                 async let f = client.readFans()
                 async let p = client.activeProfile()

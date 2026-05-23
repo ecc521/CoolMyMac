@@ -8,6 +8,11 @@ import Foundation
 /// All methods use callback-style withReply patterns (ObjC-compatible).
 @objc public protocol CoolMyMacXPCProtocol {
 
+    // MARK: - Version Check
+    
+    /// Returns the internal version string of the daemon bundle (e.g. "1.0.0")
+    func getDaemonVersion(withReply reply: @escaping (String) -> Void)
+
     // MARK: - Sensor Readings
 
     /// Returns JSON-encoded array of `SensorReading` for all active sensors.

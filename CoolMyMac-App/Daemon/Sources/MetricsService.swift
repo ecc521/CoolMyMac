@@ -121,9 +121,11 @@ final class MetricsService: @unchecked Sendable {
         var readings: [SensorReading] = []
         
         do {
-            guard let plist = try PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any] else {
+            let plist = try PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any]
+            guard let plist = plist else {
                 return []
             }
+            
             if let processor = plist["processor"] as? [String: Any] {
                 let pkgW = (processor["combined_power"] as? Double ?? 0.0) / 1000.0
                 let cpuW = (processor["cpu_power"] as? Double ?? 0.0) / 1000.0
