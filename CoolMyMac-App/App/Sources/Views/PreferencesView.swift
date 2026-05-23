@@ -46,7 +46,7 @@ struct PreferencesView: View {
                 case .about:    AboutPrefsView()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .frame(minWidth: 680, maxWidth: .infinity, minHeight: 520, maxHeight: .infinity, alignment: .topLeading)
             .padding(24)
         }
         .task { state.startRefreshing() }
@@ -284,12 +284,16 @@ struct ProfilesPrefsView: View {
 
                 // Detail panel
                 if let profile = selectedProfile {
-                    ProfileDetailView(profile: profile, state: state, onDelete: {
-                        deleteSelectedProfile()
-                    }, onSave: { newProfile in
-                        selectedProfile = newProfile
-                    })
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    ScrollView {
+                        ProfileDetailView(profile: profile, state: state, onDelete: {
+                            deleteSelectedProfile()
+                        }, onSave: { newProfile in
+                            selectedProfile = newProfile
+                        })
+                        .padding(.trailing, 8)
+                        .padding(.bottom, 24)
+                        .frame(maxWidth: .infinity, alignment: .top)
+                    }
                 } else {
                     Text("Select a profile to view details")
                         .foregroundStyle(.tertiary)
