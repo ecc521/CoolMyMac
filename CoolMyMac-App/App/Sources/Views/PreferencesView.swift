@@ -69,9 +69,10 @@ struct GeneralPrefsView: View {
     @State private var isCLIInstalled: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("General")
-                .font(.title2).bold()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("General")
+                    .font(.title2).bold()
 
             if state.updateChecker.updateAvailable {
                 HStack {
@@ -224,6 +225,8 @@ struct GeneralPrefsView: View {
             }
 
             Spacer()
+        }
+        .padding(.trailing, 8) // Give scrollbar breathing room
         }
     }
 
