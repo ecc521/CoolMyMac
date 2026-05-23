@@ -17,6 +17,7 @@
 		971617EF0F4AAD2AD4D6F9AF /* CoolMyMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A442DDDFBB8EEC644106BBE /* CoolMyMacApp.swift */; };
 		9E20F5AED2473AF2B907E255 /* MenuBarIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C05407CE6468470D1F27990 /* MenuBarIconView.swift */; };
 		AE3992469E9F015EE72EEEA5 /* ProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E220723B139B3B110F3EED69 /* ProfileStore.swift */; };
+		BD1BB11201EA20D94B6D7B7F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A4A3D3950C5FAC3A81BE709D /* Assets.xcassets */; };
 		D9AA4EE763B829F6B08D360E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AB86206F2B450FF6119A7BC /* AppState.swift */; };
 		DC585547D2A948FE45BC79B3 /* SMCKit in Frameworks */ = {isa = PBXBuildFile; productRef = 0F3B6B6369B0913FE2FC389E /* SMCKit */; };
 		E9191FBA1087A2FE2ECC5853 /* SMCKit in Frameworks */ = {isa = PBXBuildFile; productRef = A3F323A241113A20AACACF17 /* SMCKit */; };
@@ -41,6 +42,7 @@
 		901F4B96F741B8758B355216 /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
 		978B42FA4BAFD0C0B65A9620 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		9A442DDDFBB8EEC644106BBE /* CoolMyMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoolMyMacApp.swift; sourceTree = "<group>"; };
+		A4A3D3950C5FAC3A81BE709D /* Assets.xcassets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = App/Assets.xcassets; sourceTree = "<group>"; };
 		A80C2E5366027B87D3766150 /* ThermalController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThermalController.swift; sourceTree = "<group>"; };
 		B0FB81C64CF53F0E35305179 /* DaemonXPCServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DaemonXPCServer.swift; sourceTree = "<group>"; };
 		C978846B2C2F13F0A1011010 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
@@ -91,6 +93,7 @@
 			isa = PBXGroup;
 			children = (
 				C56C8EB22DDA04E02EE7088B /* Sources */,
+				A4A3D3950C5FAC3A81BE709D /* Assets.xcassets */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -174,6 +177,7 @@
 				0D75502EC6F8201BFD8010EA /* Sources */,
 				2BB9101D2791093C373E7EAB /* Frameworks */,
 				AF1B71ACB0C94B257C292803 /* Embed Daemon */,
+				13A539486D46F016198EAF50 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -229,6 +233,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		13A539486D46F016198EAF50 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BD1BB11201EA20D94B6D7B7F /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		AF1B71ACB0C94B257C292803 /* Embed Daemon */ = {
@@ -306,7 +321,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.coolmymac.app.daemon;
 				SDKROOT = macosx;
-				SWIFT_VERSION = 6.0; SKIP_INSTALL = YES;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -412,7 +428,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.coolmymac.app.daemon;
 				SDKROOT = macosx;
-				SWIFT_VERSION = 6.0; SKIP_INSTALL = YES;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
