@@ -22,9 +22,12 @@
     <key>RunAtLoad</key>
     <true/>
 
-    <!-- Keep the daemon alive if it crashes -->
+    <!-- Keep the daemon alive if it crashes, but allow it to gracefully auto-suspend with exit(0) -->
     <key>KeepAlive</key>
-    <true/>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
 
     <!-- Give the daemon high scheduling priority -->
     <key>ProcessType</key>
