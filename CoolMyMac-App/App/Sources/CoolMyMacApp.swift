@@ -47,7 +47,7 @@ struct CoolMyMacApp: App {
         Window("CoolMyMac Preferences", id: "preferences") {
             PreferencesView(state: state)
         }
-        .defaultSize(width: 680, height: 520)
+        .defaultSize(width: 500, height: 400)
         .windowResizability(.contentMinSize)
     }
 }

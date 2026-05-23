@@ -130,7 +130,10 @@ final class AppState {
         }
     }
 
+    private var refreshSubscribers = 0
+    
     func startRefreshing() {
+        refreshSubscribers += 1
         guard refreshTask == nil else { return }  // prevent duplicate loops
         refresh()
         
@@ -152,8 +155,13 @@ final class AppState {
     }
     
     func stopRefreshing() {
-        refreshTask?.cancel()
-        refreshTask = nil
+        refreshSubscribers -= 1
+        if refreshSubscribers <= 0 {
+            refreshSubscribers = 0
+            refreshTask?.cancel()
+            refreshTask = nil
+            client.disconnect() // Disconnect from XPC so daemon can suspend
+        }
     }
 
     var isViewingAllSensors: Bool = false {

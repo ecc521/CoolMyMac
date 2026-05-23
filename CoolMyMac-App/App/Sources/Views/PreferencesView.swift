@@ -46,10 +46,11 @@ struct PreferencesView: View {
                 case .about:    AboutPrefsView()
                 }
             }
-            .frame(minWidth: 680, maxWidth: .infinity, minHeight: 520, maxHeight: .infinity, alignment: .topLeading)
+            .frame(minWidth: 400, idealWidth: 500, maxWidth: .infinity, minHeight: 300, idealHeight: 400, maxHeight: .infinity, alignment: .topLeading)
             .padding(24)
         }
-        .task { state.startRefreshing() }
+        .onAppear { state.startRefreshing() }
+        .onDisappear { state.stopRefreshing() }
         .onAppear {
             NSApp.activate(ignoringOtherApps: true)
             for window in NSApp.windows where window.identifier?.rawValue == "preferences" {
@@ -411,7 +412,7 @@ struct BuiltInProfileDetailView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.secondary)
                     
-                    Text("This profile returns full thermal control to macOS. The daemon will monitor sensors in the background but will not apply any fan overrides.")
+                    Text("This profile returns full thermal control to macOS without applying any fan overrides.")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -837,26 +838,10 @@ struct SensorRowView: View {
     
     var body: some View {
         let isPowerOrClock = (group == .power || group == .clockSpeed)
-        let isExcluded = !isPowerOrClock && (state.excludedSensors.contains(sensor.name) || !state.activeSensors.contains(group))
+        let isExcluded = !isPowerOrClock && !state.activeSensors.contains(group)
         let isHot = sensor.unit == .celsius && sensor.value > 80
         
         HStack {
-            if !isPowerOrClock {
-                Toggle("", isOn: Binding(
-                    get: { !state.excludedSensors.contains(sensor.name) },
-                    set: { isOn in
-                        if isOn { state.excludedSensors.remove(sensor.name) }
-                        else { state.excludedSensors.insert(sensor.name) }
-                    }
-                ))
-                .labelsHidden()
-                .controlSize(.mini)
-                .tint(.blue)
-                .disabled(!state.activeSensors.contains(group))
-            } else {
-                // Placeholder to keep alignment
-                Image(systemName: "circle").opacity(0).frame(width: 14)
-            }
             
             Text(sensor.name)
                 .font(.system(size: 12))

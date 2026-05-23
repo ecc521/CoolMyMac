@@ -116,7 +116,7 @@ struct PopoverView: View {
         }
         .frame(width: 320)
         .background(.regularMaterial)
-        .task { state.startRefreshing() }
+        .onAppear { state.startRefreshing() }
         .onDisappear { state.stopRefreshing() }
     }
 }

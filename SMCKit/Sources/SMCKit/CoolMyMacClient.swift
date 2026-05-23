@@ -42,6 +42,13 @@ public final class CoolMyMacClient: @unchecked Sendable {
         _connection?.invalidate()
     }
 
+    public func disconnect() {
+        lock.lock()
+        defer { lock.unlock() }
+        _connection?.invalidate()
+        _connection = nil
+    }
+
     private func clearConnection() {
         lock.lock()
         defer { lock.unlock() }
