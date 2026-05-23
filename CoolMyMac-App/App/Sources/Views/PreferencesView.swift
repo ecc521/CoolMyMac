@@ -694,7 +694,6 @@ struct SensorsPrefsView: View {
                         if let sensors = grouped[group] {
                             let maxValue = sensors.map(\.value).max() ?? 0.0
                             let minValue = sensors.map(\.value).min() ?? 0.0
-                            let isPowerOrClock = (group == .power || group == .clockSpeed)
                             let unit = sensors.first?.unit ?? .celsius
                             
                             DisclosureGroup(

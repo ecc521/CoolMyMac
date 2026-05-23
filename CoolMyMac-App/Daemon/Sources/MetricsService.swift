@@ -36,10 +36,14 @@ final class MetricsService: @unchecked Sendable {
                 guard !data.isEmpty else {
                     // EOF reached. Must set to nil to prevent 100% CPU infinite loop!
                     handle.readabilityHandler = nil
+                    self?.queue.async { [weak self] in
+                        self?.isRunning = false
+                        self?.runningTask = nil
+                    }
                     return
                 }
                 
-                self?.queue.async {
+                self?.queue.async { [weak self] in
                     self?.processIncomingData(data)
                 }
             }
