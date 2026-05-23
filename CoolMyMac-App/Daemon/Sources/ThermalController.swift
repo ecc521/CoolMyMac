@@ -88,6 +88,10 @@ final class ThermalController: @unchecked Sendable {
         self.smcController = controller
         self.currentFanCount = (try? smcController?.fanCount()) ?? 0
         thermalLogger.info("ThermalController initialized. Fan count: \(self.currentFanCount, privacy: .public)")
+        
+        // Always reset fans to Apple auto control on boot, in case the daemon previously
+        // crashed while fans were manually overridden, preventing them from being locked.
+        resetAllFans()
     }
 
     // MARK: - Lifecycle

@@ -668,7 +668,7 @@ struct SensorsPrefsView: View {
                 if let lastUpdate = state.lastSensorsUpdate {
                     TimelineView(.periodic(from: .now, by: 1.0)) { timeline in
                         let elapsed = Int(timeline.date.timeIntervalSince(lastUpdate))
-                        let timeString = elapsed == 0 ? "just now" : "\(elapsed)s ago"
+                        let timeString = elapsed < 3 ? "just now" : "\(elapsed)s ago"
                         Text("Updated \(timeString)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
