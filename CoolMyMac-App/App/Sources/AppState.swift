@@ -34,6 +34,7 @@ final class AppState {
     // MARK: - Daemon Status
 
     var daemonStatus: DaemonInstallStatus = .unknown
+    var daemonVersion: String? = nil
     var isRefreshing: Bool = false
     var lastSensorsUpdate: Date? = nil
 
@@ -182,13 +183,15 @@ final class AppState {
             if daemonStatus == .installed && isReachable {
                 if !hasCheckedDaemonVersion {
                     hasCheckedDaemonVersion = true
-                    if let dVersion = try? await client.getDaemonVersion(),
-                       let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
-                       dVersion != appVersion {
-                        logger.info("Daemon version mismatch (\(dVersion) vs app \(appVersion)). Auto-repairing daemon...")
-                        try? await DaemonManager.shared.repairDaemon()
-                        isRefreshing = false
-                        return
+                    if let dVersion = try? await client.getDaemonVersion() {
+                        daemonVersion = dVersion
+                        if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                           dVersion != appVersion {
+                            logger.info("Daemon version mismatch (\(dVersion) vs app \(appVersion)). Auto-repairing daemon...")
+                            try? await DaemonManager.shared.repairDaemon()
+                            isRefreshing = false
+                            return
+                        }
                     }
                 }
                 

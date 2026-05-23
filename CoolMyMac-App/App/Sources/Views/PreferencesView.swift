@@ -199,7 +199,9 @@ struct GeneralPrefsView: View {
 
     private var daemonStatusLabel: String {
         switch state.daemonStatus {
-        case .installed:        return "Daemon running"
+        case .installed:        
+            if let ver = state.daemonVersion { return "Daemon running (v\(ver))" }
+            return "Daemon running"
         case .notInstalled:     return "Daemon not installed"
         case .requiresApproval: return "Approval required — click to re-grant"
         case .unreachable:      return "Daemon disconnected"
