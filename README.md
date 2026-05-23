@@ -1,4 +1,4 @@
-# ChillMac (formerly CoolMyMac)
+# CoolMyMac
 
 A modern, lightweight fan control utility for macOS 15.0+ with a beautiful Menu Bar interface.
 
@@ -10,24 +10,24 @@ A modern, lightweight fan control utility for macOS 15.0+ with a beautiful Menu 
   - `Performance`: Higher minimum RPMs and an aggressive ramp-up to max speed around 85°C.
   - `Max`: Forces all fans to run at maximum speed instantly.
 - **Multi-Target Architecture**:
-  - `ChillMac`: A SwiftUI App containing the MenuBarExtra and robust Preferences window.
-  - `ChillMac-Daemon`: A LaunchDaemon running as `root` (with an XPC listener) needed to write speeds to the SMC.
-  - `ChillMacCLI`: A powerful command-line interface for scripting profile changes (`chillmac temps`, `chillmac fans`, `chillmac set max`).
+  - `CoolMyMac`: A SwiftUI App containing the MenuBarExtra and robust Preferences window.
+  - `CoolMyMac-Daemon`: A LaunchDaemon running as `root` (with an XPC listener) needed to write speeds to the SMC.
+  - `coolmymac` (CLI): A powerful command-line interface for scripting profile changes (`coolmymac temps`, `coolmymac fans`, `coolmymac profile set max`).
 - **Graceful Fallback**: If you choose not to install the daemon via `SMAppService`, you can still use the app to monitor live CPU/GPU temperatures and active fan RPMs in real-time natively!
 
-## Requirements
-- macOS 15.0 (Sequoia) or newer
-- Apple Developer ID (required to locally code-sign the LaunchDaemon for `SMAppService`)
+## Installation
+
+### Method 1: Homebrew (Recommended)
+You can install CoolMyMac and its accompanying CLI tool using Homebrew:
+```bash
+brew tap ecc521/coolmymac
+brew install --cask coolmymac
+```
+
+### Method 2: Manual Download
+Download the latest `CoolMyMac.zip` from the [Releases](https://github.com/ecc521/CoolMyMac/releases) page, extract it, and drag `CoolMyMac.app` to your `/Applications` folder.
 
 ## How to Build & Run
-
-### 1. Generating the Xcode Project
-The `.xcodeproj` is generated using `xcodegen`. If you modify the project structure, regenerate it:
-```bash
-brew install xcodegen
-cd CoolMyMac-App
-xcodegen generate
-```
 
 ### 2. Code Signing (Required for Daemon)
 Because macOS requires LaunchDaemons installed via `SMAppService` to be signed by the same Team ID as the host app, you **must** configure code signing manually before building:
