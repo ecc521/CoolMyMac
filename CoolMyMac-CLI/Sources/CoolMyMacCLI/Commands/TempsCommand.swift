@@ -77,14 +77,16 @@ struct TempsCommand: AsyncParsableCommand {
 private extension SensorGroup {
     var displayName: String {
         switch self {
-        case .cpuCore: return "CPU Cores"
-        case .gpu:     return "GPU"
-        case .nand:    return "NAND / Storage"
-        case .battery: return "Battery"
-        case .enclosure: return "Enclosure / Skin"
-        case .vrm:     return "VRM / Power"
-        case .wireless: return "Wireless"
-        case .other:   return "Other"
+        case .cpuCore:    return "CPU Cores"
+        case .gpu:        return "GPU"
+        case .nand:       return "Storage"
+        case .battery:    return "Battery"
+        case .enclosure:  return "Enclosure"
+        case .vrm:        return "VRM"
+        case .wireless:   return "Wireless"
+        case .power:      return "Power"
+        case .clockSpeed: return "Clock Speeds"
+        case .other:      return "Other Sensors"
         }
     }
 }
