@@ -24,8 +24,8 @@ final class MetricsService: @unchecked Sendable {
             let task = Process()
             self.runningTask = task
             task.executableURL = URL(fileURLWithPath: "/usr/bin/powermetrics")
-            // Run continuously every 1000ms
-            task.arguments = ["-i", "1000", "--samplers", "cpu_power,gpu_power", "-f", "plist"]
+            // Run continuously every 1000ms, unbuffered, with initial usage to eliminate start delay
+            task.arguments = ["-i", "1000", "-b", "1", "--show-initial-usage", "--samplers", "cpu_power,gpu_power", "-f", "plist"]
             
             let pipe = Pipe()
             task.standardOutput = pipe
