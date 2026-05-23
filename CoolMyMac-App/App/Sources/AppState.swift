@@ -134,6 +134,12 @@ final class AppState {
         refresh()
         
         refreshTask = Task { @MainActor [weak self] in
+            let activity = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+                reason: "CoolMyMac Menu Bar Updates"
+            )
+            defer { ProcessInfo.processInfo.endActivity(activity) }
+            
             while !Task.isCancelled {
                 guard let self = self else { break }
                 try? await Task.sleep(nanoseconds: UInt64(self.updateInterval * 1_000_000_000))
