@@ -28,7 +28,7 @@ public extension FanProfile {
     static let balanced = FanProfile(
         id: "balanced",
         displayName: "Balanced",
-        isBuiltIn: true,
+        isBuiltIn: false,
         curve: FanCurve(points: [
             CurvePoint(value: 40, rpmPercentage: 0.0),   // ~Idle / Floor
             CurvePoint(value: 55, rpmPercentage: 0.06),  // ~1500 RPM equivalent
@@ -40,8 +40,8 @@ public extension FanProfile {
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            spinUpTime: 0.0,
-            spinDownTime: 5.0
+            spinUpTime: 3.0,
+            spinDownTime: 10.0
         )
     )
 
@@ -51,7 +51,7 @@ public extension FanProfile {
     static let performance = FanProfile(
         id: "performance",
         displayName: "Performance",
-        isBuiltIn: true,
+        isBuiltIn: false,
         curve: FanCurve(points: [
             CurvePoint(value: 40, rpmPercentage: 0.16),  // Higher idle floor (~2000 RPM)
             CurvePoint(value: 55, rpmPercentage: 0.27),  // Light load (~2500 RPM)
@@ -62,31 +62,33 @@ public extension FanProfile {
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
-            spinUpTime: 0.0,
-            spinDownTime: 3.0  // Faster response time
+            spinUpTime: 1.0,
+            spinDownTime: 5.0
         )
     )
 
     // MARK: - Max
 
-    /// Max: Fans always at maximum RPM. No curve — constant maximum.
+    /// Max: Runs all fans at 100% capacity continuously.
     static let max = FanProfile(
         id: "max",
         displayName: "Max",
-        isBuiltIn: true,
+        isBuiltIn: false,
         curve: FanCurve(points: [
-            CurvePoint(value: 0,   rpmPercentage: 1.0),  // Always max
+            CurvePoint(value: 0,   rpmPercentage: 1.0),
             CurvePoint(value: 100, rpmPercentage: 1.0),
         ]),
         settings: ProfileSettings(
             sources: [.cpuCore, .gpu],
             aggregation: .max,
             spinUpTime: 0.0,
-            spinDownTime: 1.0
+            spinDownTime: 0.0
         )
     )
 
-    // MARK: - All Built-ins
-
-    static let allBuiltIn: [FanProfile] = [.system, .balanced, .performance, .max]
+    // MARK: - All
+    static let allBuiltIn: [FanProfile] = [.system]
+    
+    // MARK: - Configurable Templates
+    static let defaultTemplates: [FanProfile] = [.balanced, .performance, .max]
 }
