@@ -23,18 +23,13 @@ final class ProfileStore: @unchecked Sendable {
         profilesURL = appSupport.appendingPathComponent("CoolMyMac/profiles", isDirectory: true)
         try? FileManager.default.createDirectory(at: profilesURL, withIntermediateDirectories: true)
         
-        let migrationKey = "didInstallDefaultTemplates_v1"
-        let defaults = UserDefaults(suiteName: "com.coolmymac.daemon")
-        if defaults?.bool(forKey: migrationKey) != true {
-            for template in FanProfile.defaultTemplates {
-                if loadCustomProfile(id: template.id) == nil {
-                    let url = profileURL(for: template.id)
-                    if let data = try? JSONEncoder().encode(template) {
-                        try? data.write(to: url, options: .atomic)
-                    }
+        for template in FanProfile.defaultTemplates {
+            if loadCustomProfile(id: template.id) == nil {
+                let url = profileURL(for: template.id)
+                if let data = try? JSONEncoder().encode(template) {
+                    try? data.write(to: url, options: .atomic)
                 }
             }
-            defaults?.set(true, forKey: migrationKey)
         }
     }
 
