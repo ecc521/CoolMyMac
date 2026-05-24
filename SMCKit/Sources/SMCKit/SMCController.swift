@@ -22,7 +22,13 @@ public final class SMCController {
     /// Initializes the controller, selecting the appropriate backend.
     /// - Throws: `SMCError.unsupportedHardware` if no suitable backend is available.
     public init() throws {
-        self.provider = try AppleSiliconSMC()
+        var isARM: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        if sysctlbyname("hw.optional.arm64", &isARM, &size, nil, 0) == 0 && isARM == 1 {
+            self.provider = try AppleSiliconSMC()
+        } else {
+            self.provider = try AppleSMC()
+        }
     }
 
     // MARK: - Temperature
