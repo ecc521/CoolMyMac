@@ -21,3 +21,5 @@ CoolMyMac is a modern, Swift-based macOS application built to give users control
 The recommended installation method for users is Homebrew:
 `brew tap ecc521/coolmymac`
 `brew install --cask coolmymac`
+
+Alternatively, signed DMG files for drag-and-drop installation are available on the [GitHub Releases](https://github.com/ecc521/CoolMyMac/releases) page.
