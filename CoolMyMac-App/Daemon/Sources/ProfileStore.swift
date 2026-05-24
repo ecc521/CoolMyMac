@@ -115,7 +115,7 @@ final class ProfileStore: @unchecked Sendable {
         guard !profile.isBuiltIn else {
             throw ProfileStoreError.cannotModifyBuiltIn(profile.id)
         }
-        try validateProfileID(profile.id)
+        try profile.validate()
         let data = try JSONEncoder().encode(profile)
         let url = profileURL(for: profile.id)
         try data.write(to: url, options: .atomic)
