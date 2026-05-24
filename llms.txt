@@ -1,0 +1,23 @@
+# CoolMyMac
+
+> An advanced, native macOS utility with a beautiful Menu Bar UI and CLI to monitor temperatures and control your Mac's fans.
+
+## About
+CoolMyMac is a modern, Swift-based macOS application built to give users control over their thermal management on both Apple Silicon and Intel Macs. It replaces legacy, bloated tools with a native SwiftUI interface and a powerful CLI.
+
+## Key Features
+- **Apple Silicon & Intel Support**: Dynamically interfaces with IOKit (`AppleSMC`) to read sensor data and override fan modes natively on both architectures.
+- **Dynamic Menu Bar**: The icon shifts from blue to red as CPU/GPU temperatures increase.
+- **Profiles**: Built-in cooling profiles (Quiet, Balanced, Performance, Max) that automatically ramp up fan RPM based on weighted thermal sensors.
+- **CLI (`coolmymac`)**: A dedicated command-line interface to read thermals (`coolmymac temps`) and control profiles programmatically.
+
+## Architecture
+- **App**: A SwiftUI MenuBarExtra application that handles user preferences and the main UI.
+- **Daemon**: A root LaunchDaemon installed via `SMAppService` that securely handles low-level IOKit writes.
+- **XPC**: The App and CLI communicate with the Daemon securely via XPC (`CoolMyMacXPCProtocol.swift`).
+- **SMCKit**: A robust, abstracted Swift package that safely queries and commands the macOS SMC (System Management Controller).
+
+## Installation
+The recommended installation method for users is Homebrew:
+`brew tap ecc521/coolmymac`
+`brew install --cask coolmymac`
