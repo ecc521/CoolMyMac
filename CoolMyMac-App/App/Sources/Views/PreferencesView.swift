@@ -568,6 +568,8 @@ struct CustomProfileDetailView: View {
     @State private var spinDownTime: Double
     @State private var selectedSources: Set<SensorGroup>
     @State private var aggregation: AggregationMode
+    @State private var showError: Bool = false
+    @State private var errorMessage: String?
 
     struct EditablePoint: Identifiable {
         let id = UUID()
@@ -632,16 +634,28 @@ struct CustomProfileDetailView: View {
                             settings: newSettings
                         )
                         Task { 
-                            try? await state.client.saveCustomProfile(newProfile)
-                            await MainActor.run { 
-                                state.refresh()
-                                onSave?(newProfile)
+                            do {
+                                try await state.client.saveCustomProfile(newProfile)
+                                await MainActor.run { 
+                                    state.refresh()
+                                    onSave?(newProfile)
+                                }
+                            } catch {
+                                await MainActor.run {
+                                    errorMessage = error.localizedDescription
+                                    showError = true
+                                }
                             }
                         }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.green)
                     .controlSize(.small)
+                    .alert("Error Saving Profile", isPresented: $showError, presenting: errorMessage) { _ in
+                        Button("OK", role: .cancel) {}
+                    } message: { msg in
+                        Text(msg)
+                    }
                 } else {
                     Button("Activate") {
                         state.setProfile(profile)

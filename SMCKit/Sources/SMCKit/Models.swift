@@ -121,6 +121,7 @@ public struct FanProfile: Codable, Identifiable, Sendable {
         }
 
         // Validate Curve
+        var seenTemps = Set<Double>()
         for point in curve.points {
             guard point.value.isFinite && point.rpmPercentage.isFinite else {
                 throw NSError(domain: "FanProfileError", code: 4, userInfo: [NSLocalizedDescriptionKey: "Curve points must be finite numbers."])
@@ -128,6 +129,10 @@ public struct FanProfile: Codable, Identifiable, Sendable {
             guard point.rpmPercentage >= 0.0 && point.rpmPercentage <= 1.0 else {
                 throw NSError(domain: "FanProfileError", code: 5, userInfo: [NSLocalizedDescriptionKey: "RPM percentage must be between 0.0 and 1.0."])
             }
+            guard !seenTemps.contains(point.value) else {
+                throw NSError(domain: "FanProfileError", code: 6, userInfo: [NSLocalizedDescriptionKey: "Curve points must have unique temperatures. Remove the duplicate point at \(Int(point.value))°C."])
+            }
+            seenTemps.insert(point.value)
         }
     }
 }
