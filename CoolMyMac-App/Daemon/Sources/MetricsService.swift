@@ -161,8 +161,8 @@ final class MetricsService: @unchecked Sendable {
                         if let cpus = cluster["cpus"] as? [[String: Any]], let firstCpu = cpus.first {
                             if let freqHz = firstCpu["freq_hz"] as? Double {
                                 currentCounts[name, default: 0] += 1
-                                let current = currentCounts[name]!
-                                let total = totalCounts[name]!
+                                let current = currentCounts[name, default: 0]
+                                let total = totalCounts[name, default: 0]
                                 
                                 let baseName = name.replacingOccurrences(of: "-Cluster", with: "")
                                 let displayName = total > 1 ? "\(baseName)\(current - 1)-CPU" : "\(baseName)-CPU"
