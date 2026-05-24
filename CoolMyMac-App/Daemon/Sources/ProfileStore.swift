@@ -169,8 +169,18 @@ final class ProfileStore: @unchecked Sendable {
 
     private func loadCustomProfile(id: String) -> FanProfile? {
         let url = profileURL(for: id)
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(FanProfile.self, from: data)
+        guard let data = try? Data(contentsOf: url),
+              let loaded = try? JSONDecoder().decode(FanProfile.self, from: data) else {
+            return nil
+        }
+        
+        do {
+            try loaded.validate()
+            return loaded
+        } catch {
+            profileLogger.error("Profile '\(id, privacy: .public)' failed validation: \(error.localizedDescription, privacy: .public). Falling back.")
+            return nil
+        }
     }
 
     private func loadCustomProfileIDs() -> [String] {

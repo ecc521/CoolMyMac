@@ -102,6 +102,34 @@ public struct FanProfile: Codable, Identifiable, Sendable {
         self.curve = curve
         self.settings = settings
     }
+
+    /// Validates that the profile is structurally sound and mathematically safe to execute.
+    /// Throws an error if any values are corrupted, out of bounds, or potentially dangerous.
+    public func validate() throws {
+        // Validate ID format (must be alphanumeric/hyphens/underscores, max 64 chars)
+        guard !id.isEmpty, id.count <= 64 else {
+            throw NSError(domain: "FanProfileError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Profile ID is invalid or too long."])
+        }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        guard id.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+            throw NSError(domain: "FanProfileError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Profile ID contains invalid characters."])
+        }
+
+        // Validate Settings
+        guard settings.spinUpTime >= 0 && settings.spinDownTime >= 0 else {
+            throw NSError(domain: "FanProfileError", code: 3, userInfo: [NSLocalizedDescriptionKey: "Spin times cannot be negative."])
+        }
+
+        // Validate Curve
+        for point in curve.points {
+            guard point.value.isFinite && point.rpmPercentage.isFinite else {
+                throw NSError(domain: "FanProfileError", code: 4, userInfo: [NSLocalizedDescriptionKey: "Curve points must be finite numbers."])
+            }
+            guard point.rpmPercentage >= 0.0 && point.rpmPercentage <= 1.0 else {
+                throw NSError(domain: "FanProfileError", code: 5, userInfo: [NSLocalizedDescriptionKey: "RPM percentage must be between 0.0 and 1.0."])
+            }
+        }
+    }
 }
 
 /// Piecewise linear temp→RPM curve.
@@ -111,7 +139,19 @@ public struct FanCurve: Codable, Sendable {
     public let points: [CurvePoint]
 
     public init(points: [CurvePoint]) {
-        self.points = points.sorted { $0.value < $1.value }
+        // Filter out NaN/Infinite values and sort
+        self.points = points
+            .filter { $0.value.isFinite && $0.rpmPercentage.isFinite }
+            .sorted { $0.value < $1.value }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let rawPoints = try container.decode([CurvePoint].self, forKey: .points)
+        // Ensure points are sorted and finite even when decoded from raw JSON
+        self.points = rawPoints
+            .filter { $0.value.isFinite && $0.rpmPercentage.isFinite }
+            .sorted { $0.value < $1.value }
     }
 
     /// Interpolates the target RPM percentage for a given temperature.
@@ -142,6 +182,13 @@ public struct CurvePoint: Codable, Sendable {
     public init(value: Double, rpmPercentage: Double) {
         self.value = value
         self.rpmPercentage = max(0.0, min(1.0, rpmPercentage))
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.value = try container.decode(Double.self, forKey: .value)
+        let rawRpm = try container.decode(Double.self, forKey: .rpmPercentage)
+        self.rpmPercentage = max(0.0, min(1.0, rawRpm))
     }
 }
 
