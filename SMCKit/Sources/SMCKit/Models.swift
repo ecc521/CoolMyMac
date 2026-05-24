@@ -121,6 +121,10 @@ public struct FanProfile: Codable, Identifiable, Sendable {
         }
 
         // Validate Curve
+        guard !curve.points.isEmpty else {
+            throw NSError(domain: "FanProfileError", code: 7, userInfo: [NSLocalizedDescriptionKey: "A profile must have at least one curve point."])
+        }
+        
         var seenTemps = Set<Double>()
         for point in curve.points {
             guard point.value.isFinite && point.rpmPercentage.isFinite else {
