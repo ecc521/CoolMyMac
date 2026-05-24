@@ -258,6 +258,9 @@ final class ThermalController: @unchecked Sendable {
                     // The SMC will internally clamp this to its safe hardware minimum if 0 RPM isn't supported.
                     if targetPercentage == 0.0 {
                         targetRPM = 0
+                    } else if targetPercentage.isNaN {
+                        // Failsafe against NaN math crashing the daemon integer cast
+                        targetRPM = fan.minRPM
                     } else {
                         // Defensive clamp against potentially corrupted SMC reads or math overflow:
                         // Ensure we never write an RPM below the hardware min OR above the hardware max.

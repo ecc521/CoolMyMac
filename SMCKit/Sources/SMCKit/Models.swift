@@ -124,7 +124,10 @@ public struct FanCurve: Codable, Sendable {
         for i in 0..<(points.count - 1) {
             let lo = points[i], hi = points[i + 1]
             if value >= lo.value && value <= hi.value {
-                let t = (value - lo.value) / (hi.value - lo.value)
+                let tempRange = hi.value - lo.value
+                if tempRange <= 0.001 { return hi.rpmPercentage } // Prevent divide by zero (NaN)
+                
+                let t = (value - lo.value) / tempRange
                 return lo.rpmPercentage + t * (hi.rpmPercentage - lo.rpmPercentage)
             }
         }
