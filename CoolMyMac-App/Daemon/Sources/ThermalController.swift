@@ -258,6 +258,12 @@ final class ThermalController: @unchecked Sendable {
                     // The SMC will internally clamp this to its safe hardware minimum if 0 RPM isn't supported.
                     if targetPercentage == 0.0 {
                         targetRPM = 0
+                    } else {
+                        // Defensive clamp against potentially corrupted SMC reads or math overflow:
+                        // Ensure we never write an RPM below the hardware min OR above the hardware max.
+                        let safeMin = min(fan.minRPM, fan.maxRPM)
+                        let safeMax = max(fan.minRPM, fan.maxRPM)
+                        targetRPM = max(safeMin, min(safeMax, targetRPM))
                     }
                     
                     // Always enforce the profile's target RPM (Forced Mode).
