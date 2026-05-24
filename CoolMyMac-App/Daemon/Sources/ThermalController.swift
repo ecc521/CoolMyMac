@@ -252,7 +252,13 @@ final class ThermalController: @unchecked Sendable {
                     }
                 } else {
                     let range = Double(fan.maxRPM - fan.minRPM)
-                    let targetRPM = Int(Double(fan.minRPM) + (range * targetPercentage))
+                    var targetRPM = Int(Double(fan.minRPM) + (range * targetPercentage))
+                    
+                    // If the curve evaluates to precisely 0%, attempt to shut the fan off completely.
+                    // The SMC will internally clamp this to its safe hardware minimum if 0 RPM isn't supported.
+                    if targetPercentage == 0.0 {
+                        targetRPM = 0
+                    }
                     
                     // Always enforce the profile's target RPM (Forced Mode).
                     // Yielding based on currentRPM causes infinite oscillation (thrashing)
