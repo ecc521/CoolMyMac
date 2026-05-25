@@ -11,11 +11,21 @@ CoolMyMac is a modern, Swift-based macOS application built to give users control
 - **Profiles**: Built-in cooling profiles (Quiet, Balanced, Performance, Max) that automatically ramp up fan RPM based on weighted thermal sensors.
 - **CLI (`coolmymac`)**: A dedicated command-line interface to read thermals (`coolmymac temps`) and control profiles programmatically.
 
-## Architecture
-- **App**: A SwiftUI MenuBarExtra application that handles user preferences and the main UI.
-- **Daemon**: A root LaunchDaemon installed via `SMAppService` that securely handles low-level IOKit writes.
-- **XPC**: The App and CLI communicate with the Daemon securely via XPC (`CoolMyMacXPCProtocol.swift`).
-- **SMCKit**: A robust, abstracted Swift package that safely queries and commands the macOS SMC (System Management Controller).
+## Directory Structure
+```
+CoolMyMac/
+├── CoolMyMac-App/        # The main Xcode project
+│   ├── App/              # The SwiftUI MenuBar application
+│   └── Daemon/           # The root LaunchDaemon (handles IOKit writes)
+├── CoolMyMac-CLI/        # The Swift Package for the command-line tool
+├── SMCKit/               # Core framework for interfacing with the macOS SMC
+└── scripts/              # Build scripts and utilities
+```
+
+## Architecture Constraints
+- **Universal Binary**: The CLI (`CoolMyMac-CLI`) is embedded as a Universal Binary in the main App bundle during the build phase. Do not configure builds that are strictly `arm64` as Intel support is required.
+- **App/Daemon Split**: The Daemon runs as `root` via `SMAppService`. The App and CLI run unprivileged and communicate with the Daemon securely via XPC (`CoolMyMacXPCProtocol.swift`).
+- **SMCKit**: A robust, abstracted Swift package that safely queries and commands the macOS SMC (System Management Controller). It must remain agnostic to the process it is running in.
 
 ## Installation
 The recommended installation method for users is Homebrew:

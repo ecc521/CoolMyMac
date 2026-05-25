@@ -1,10 +1,22 @@
 # CoolMyMac
 
-A modern, lightweight fan control utility for macOS 15.0+ with a beautiful Menu Bar interface.
+![macOS 15.0+](https://img.shields.io/badge/macOS-15.0%2B-blue.svg)
+![Swift 6](https://img.shields.io/badge/Swift-6-orange.svg)
+![License](https://img.shields.io/badge/license-GPLv3-green.svg)
+
+A modern, lightweight **macOS fan control** and **thermal management** utility for macOS 15.0+ with a beautiful Menu Bar interface. CoolMyMac provides complete control over your Mac's cooling system, deeply integrating with the macOS System Management Controller (SMC) to provide optimal cooling performance and thermal throttling prevention on both **Apple Silicon (M1/M2/M3/M4/M5)** and **Intel** Macs.
 
 <p align="center">
   <img src="assets/screenshot.png" alt="CoolMyMac Menu Bar Interface" width="400">
 </p>
+
+## Table of Contents
+- [Installation](#installation)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Build from Source](#build-from-source)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Installation
 
@@ -20,16 +32,19 @@ Download the latest `CoolMyMac.dmg` from the [Releases](https://github.com/ecc52
 
 ## Features
 - **Dynamic Menu Bar Icon**: The icon automatically shifts from blue to red as your CPU/GPU gets hotter.
+- **Apple Silicon & Intel SMC Support**: Native, low-level IOKit sensor readings for package power, CPU/GPU temps, and clock speeds.
 - **Built-in Presets**:
   - `Quiet`: Leaves Apple's default thermal management fully in control.
   - `Balanced`: Matches Apple's minimum RPM floor but raises the ceiling more aggressively for developer workloads.
   - `Performance`: Higher minimum RPMs and an aggressive ramp-up to max speed around 85°C.
   - `Max`: Forces all fans to run at maximum speed instantly.
-- **Multi-Target Architecture**:
-  - `CoolMyMac`: A SwiftUI App containing the MenuBarExtra and robust Preferences window.
-  - `CoolMyMac-Daemon`: A LaunchDaemon running as `root` (with an XPC listener) needed to write speeds to the SMC.
-  - `coolmymac` (CLI): A powerful command-line interface for scripting profile changes (`coolmymac temps`, `coolmymac fans`, `coolmymac profile set max`).
+- **Command Line Interface (CLI)**: A powerful `coolmymac` tool for scripting profile changes (`coolmymac temps`, `coolmymac fans`, `coolmymac profile set max`).
 - **Graceful Fallback**: If you choose not to install the daemon via `SMAppService`, you can still use the app to monitor live CPU/GPU temperatures and active fan RPMs in real-time natively!
+
+## Architecture
+- **App**: A SwiftUI MenuBarExtra application containing the Preferences window.
+- **Daemon**: A secure `SMAppService` LaunchDaemon running as `root` (with an XPC listener) required to write speeds to the SMC safely.
+- **CLI**: A standalone Swift package binary embedded in the App.
 
 ## Build from Source
 
@@ -55,3 +70,9 @@ cd CoolMyMac-CLI
 swift build -c release --arch arm64 --arch x86_64
 # The universal binary will be output to: .build/apple/Products/Release/CoolMyMacCLI
 ```
+
+## Contributing
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details on how to set up your environment and submit Pull Requests.
+
+## License
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
