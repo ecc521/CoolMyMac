@@ -11,17 +11,17 @@ enum CLIContext {
 
     // MARK: - Sensor & Fan reads (read-only, no root needed via XPC)
 
-    static func readSensors() async -> Result<[SensorReading], CLIContextError> {
+    static func readSensors(all: Bool = false) async -> Result<[SensorReading], CLIContextError> {
         let xpc = CoolMyMacClient()
         do {
-            let readings = try await xpc.readSensors()
+            let readings = try await (all ? xpc.readAllSensors() : xpc.readSensors())
             return .success(readings)
         } catch {
             // Daemon unreachable — fall back to direct SMC
             printDaemonFallbackMessage()
             do {
                 let controller = try SMCController()
-                let readings = try controller.readTemperatures()
+                let readings = try controller.readTemperatures(for: all ? nil : [.cpuCore, .gpu])
                 return .success(readings)
             } catch let smcError as SMCError {
                 return .failure(.smcError(smcError))

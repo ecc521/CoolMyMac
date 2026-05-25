@@ -30,16 +30,16 @@ public struct SensorReading: Codable, Identifiable, Sendable {
 
 /// Logical grouping of sensors.
 public enum SensorGroup: String, Codable, CaseIterable, Sendable {
-    case cpuCore = "CPU Core"
-    case gpu = "GPU"
-    case nand = "NAND (Storage)"
-    case battery = "Battery"
-    case enclosure = "Enclosure / Skin"
-    case vrm = "VRM / Power"
-    case wireless = "Wireless"
-    case power = "Package Power"
-    case clockSpeed = "Clock Speed"
-    case other = "Other"
+    case cpuCore = "CPU Core"           // Both (Intel: TCxx; Apple Silicon: Tpxx/cores)
+    case gpu = "GPU"                     // Both (Intel: TGxx; Apple Silicon: Tgxx/GPU)
+    case nand = "NAND (Storage)"        // Both (Intel: TNxx; Apple Silicon: Tnxx)
+    case battery = "Battery"             // Both (Intel/Apple Silicon: TBxx)
+    case enclosure = "Enclosure / Skin"  // Both (Intel: TA/Ts/Th/TH; Apple Silicon: skin/ambient)
+    case vrm = "VRM / Power"            // Both (Intel: TPCD/Power/PCH; Apple Silicon: VRM)
+    case wireless = "Wireless"           // Intel only (TWxx wifi sensors)
+    case power = "Package Power"         // Both (Intel: package_watts; Apple Silicon: combined/cpu/gpu mW)
+    case clockSpeed = "Clock Speed"     // Both (Intel: package/cores; Apple Silicon: clusters)
+    case other = "Other"                 // Both (Intel/Apple Silicon)
     
     public init?(rawValue: String) {
         switch rawValue {

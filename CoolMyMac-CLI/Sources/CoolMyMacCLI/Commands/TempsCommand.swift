@@ -24,7 +24,7 @@ struct TempsCommand: AsyncParsableCommand {
     var json: Bool = false
 
     mutating func run() async throws {
-        let result = await CLIContext.readSensors()
+        let result = await CLIContext.readSensors(all: all)
 
         switch result {
         case .failure(let err):
@@ -50,19 +50,46 @@ struct TempsCommand: AsyncParsableCommand {
                 return
             }
 
-            // Group by sensor group
+            // Group by sensor group (Labeled by Architecture Support):
+            // - .power: Both (Intel: package_watts; Apple Silicon: combined/cpu/gpu mW)
+            // - .clockSpeed: Both (Intel: core/package/GPU freqs; Apple Silicon: cluster/GPU freqs)
+            // - .cpuCore: Both (Intel: TCxx keys; Apple Silicon: Tpxx/cores)
+            // - .gpu: Both (Intel: TGxx keys; Apple Silicon: Tgxx/GPU core)
+            // - .vrm: Both (Intel: TPCD/Power/PCH; Apple Silicon: VRM keys)
+            // - .wireless: Intel-only (TWxx wifi keys)
+            // - .battery: Both (Intel: TBxx keys; Apple Silicon: TBxx keys)
+            // - .enclosure: Both (Intel: heatsink/ambient/skin; Apple Silicon: skin/ambient)
+            // - .nand: Both (Intel: TNxx keys; Apple Silicon: Tnxx keys)
+            // - .other: Both
             let grouped = Dictionary(grouping: filtered, by: \.group)
-            let order: [SensorGroup] = [.cpuCore, .gpu, .vrm, .wireless, .battery, .enclosure, .nand, .other]
+            let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .vrm, .wireless, .battery, .enclosure, .nand, .other]
 
             for group in order {
                 guard let sensors = grouped[group], !sensors.isEmpty else { continue }
                 print("\n\(group.displayName)")
                 print(String(repeating: "─", count: 30))
                 for sensor in sensors.sorted(by: { $0.value > $1.value }) {
-                    let bar = thermalBar(celsius: sensor.value)
-                    let arrow = sensor.value >= 80 ? " ⚠️" : ""
-                    print(String(format: "  %-20@  %5.1f°C  %@%@",
-                          sensor.name, sensor.value, bar, arrow))
+                    let formattedValue: String
+                    let bar: String
+                    let arrow: String
+                    
+                    switch sensor.unit {
+                    case .celsius:
+                        formattedValue = String(format: "%5.1f°C", sensor.value)
+                        bar = thermalBar(celsius: sensor.value)
+                        arrow = sensor.value >= 80 ? " ⚠️" : ""
+                    case .watts:
+                        formattedValue = String(format: "%5.2f W", sensor.value)
+                        bar = ""
+                        arrow = ""
+                    case .megahertz:
+                        formattedValue = String(format: "%5.0f MHz", sensor.value)
+                        bar = ""
+                        arrow = ""
+                    }
+                    
+                    print(String(format: "  %-20@  %@  %@%@",
+                          sensor.name, formattedValue, bar, arrow))
                 }
             }
             print()

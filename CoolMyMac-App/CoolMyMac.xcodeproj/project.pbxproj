@@ -222,7 +222,7 @@
 			mainGroup = 33448775C194DA69FD374FF7;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "SMCKit" */,
+				34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "../SMCKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6FA314004B7F1F73465732DF /* Products */;
@@ -264,7 +264,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Build the CLI as a universal binary\ncd \"${SRCROOT}/../CoolMyMac-CLI\"\nswift build -c release --arch arm64 --arch x86_64\n\n# Copy to the App bundle as 'coolmymac-cli' to avoid case-insensitive APFS collision with the 'CoolMyMac' GUI app\ncp -f \".build/apple/Products/Release/CoolMyMacCLI\" \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/coolmymac-cli\"\n\n# Code sign the CLI binary using the App's identity so it passes Xcode's final CodeSign phase\nif [ -n \"${EXPANDED_CODE_SIGN_IDENTITY}\" ]; then\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --options runtime \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/coolmymac-cli\"\nfi\n";
+			shellScript = "# Build the CLI as a universal binary in a clean environment to avoid Xcode environment pollution\ncd \"${SRCROOT}/../CoolMyMac-CLI\"\nenv -i PATH=\"$PATH\" HOME=\"$HOME\" USER=\"$USER\" DEVELOPER_DIR=\"$DEVELOPER_DIR\" xcrun swift build -c release --arch arm64 --arch x86_64\n\n# Copy to the App bundle as 'coolmymac-cli' to avoid case-insensitive APFS collision with the 'CoolMyMac' GUI app\ncp -f \".build/apple/Products/Release/CoolMyMacCLI\" \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/coolmymac-cli\"\n\n# Code sign the CLI binary using the App's identity so it passes Xcode's final CodeSign phase\nif [ -n \"${EXPANDED_CODE_SIGN_IDENTITY}\" ]; then\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --options runtime \"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}/coolmymac-cli\"\nfi\n";
 		};
 		AF1B71ACB0C94B257C292803 /* Embed Daemon */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -577,7 +577,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "SMCKit" */ = {
+		34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "../SMCKit" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../SMCKit;
 		};
@@ -586,10 +586,12 @@
 /* Begin XCSwiftPackageProductDependency section */
 		0F3B6B6369B0913FE2FC389E /* SMCKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "../SMCKit" */;
 			productName = SMCKit;
 		};
 		A3F323A241113A20AACACF17 /* SMCKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 34A6760BEE418179F12D7909 /* XCLocalSwiftPackageReference "../SMCKit" */;
 			productName = SMCKit;
 		};
 /* End XCSwiftPackageProductDependency section */

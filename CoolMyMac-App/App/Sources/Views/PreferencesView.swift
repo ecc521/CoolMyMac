@@ -834,6 +834,17 @@ struct SensorsPrefsView: View {
             } else {
                 List {
                     let grouped = Dictionary(grouping: state.sensors, by: \.group)
+                    // Sensor Group Display Order (Labeled by Architecture Support):
+                    // - .power: Both (Intel: package_watts; Apple Silicon: combined/cpu/gpu mW)
+                    // - .clockSpeed: Both (Intel: core/package/GPU freqs; Apple Silicon: cluster/GPU freqs)
+                    // - .cpuCore: Both (Intel: TCxx keys; Apple Silicon: Tpxx/cores)
+                    // - .gpu: Both (Intel: TGxx keys; Apple Silicon: Tgxx/GPU core)
+                    // - .vrm: Both (Intel: TPCD/Power/PCH; Apple Silicon: VRM keys)
+                    // - .wireless: Intel-only (TWxx wifi keys)
+                    // - .battery: Both (Intel: TBxx keys; Apple Silicon: TBxx keys)
+                    // - .enclosure: Both (Intel: heatsink/ambient/skin; Apple Silicon: skin/ambient)
+                    // - .nand: Both (Intel: TNxx keys; Apple Silicon: Tnxx keys)
+                    // - .other: Both
                     let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .vrm, .wireless, .battery, .enclosure, .nand, .other]
 
                     ForEach(order, id: \.self) { group in

@@ -10,24 +10,24 @@ final class SMCKitTests: XCTestCase {
 
     func testFanCurveInterpolation_belowMinPoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 40, rpmPercentage: 0.2),
-            CurvePoint(celsius: 80, rpmPercentage: 1.0),
+            CurvePoint(value: 40, rpmPercentage: 0.2),
+            CurvePoint(value: 80, rpmPercentage: 1.0),
         ])
         XCTAssertEqual(curve.targetPercentage(for: 20), 0.2, "Below min temp should return min %")
     }
 
     func testFanCurveInterpolation_aboveMaxPoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 40, rpmPercentage: 0.2),
-            CurvePoint(celsius: 80, rpmPercentage: 1.0),
+            CurvePoint(value: 40, rpmPercentage: 0.2),
+            CurvePoint(value: 80, rpmPercentage: 1.0),
         ])
         XCTAssertEqual(curve.targetPercentage(for: 100), 1.0, "Above max temp should return max %")
     }
 
     func testFanCurveInterpolation_midpoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 40, rpmPercentage: 0.2),
-            CurvePoint(celsius: 80, rpmPercentage: 1.0),
+            CurvePoint(value: 40, rpmPercentage: 0.2),
+            CurvePoint(value: 80, rpmPercentage: 1.0),
         ])
         // At midpoint (60°C), should be exactly 50% between 0.2 and 1.0 = 0.6
         XCTAssertEqual(curve.targetPercentage(for: 60), 0.6, accuracy: 0.001, "Midpoint should interpolate linearly")
@@ -35,8 +35,8 @@ final class SMCKitTests: XCTestCase {
 
     func testFanCurveInterpolation_exactPoint() {
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 55, rpmPercentage: 0.3),
-            CurvePoint(celsius: 75, rpmPercentage: 0.7),
+            CurvePoint(value: 55, rpmPercentage: 0.3),
+            CurvePoint(value: 75, rpmPercentage: 0.7),
         ])
         XCTAssertEqual(curve.targetPercentage(for: 55), 0.3, "Exact match should return exact %")
         XCTAssertEqual(curve.targetPercentage(for: 75), 0.7, "Exact match should return exact %")
@@ -45,8 +45,8 @@ final class SMCKitTests: XCTestCase {
     func testFanCurveInterpolation_unsortedPoints() {
         // Points passed out of order should still produce correct results after sorting
         let curve = FanCurve(points: [
-            CurvePoint(celsius: 80, rpmPercentage: 1.0),
-            CurvePoint(celsius: 40, rpmPercentage: 0.2),
+            CurvePoint(value: 80, rpmPercentage: 1.0),
+            CurvePoint(value: 40, rpmPercentage: 0.2),
         ])
         XCTAssertEqual(curve.targetPercentage(for: 60), 0.6, accuracy: 0.001, "Unsorted points should be handled correctly")
     }
@@ -59,12 +59,9 @@ final class SMCKitTests: XCTestCase {
     // MARK: - Built-in Profiles
 
     func testBuiltInProfilesAreAllPresent() {
-        XCTAssertEqual(FanProfile.allBuiltIn.count, 4)
+        XCTAssertEqual(FanProfile.allBuiltIn.count, 1)
         let ids = FanProfile.allBuiltIn.map(\.id)
         XCTAssertTrue(ids.contains("system"))
-        XCTAssertTrue(ids.contains("balanced"))
-        XCTAssertTrue(ids.contains("performance"))
-        XCTAssertTrue(ids.contains("max"))
     }
 
     func testSystemProfileHasNoControlPoints() {
@@ -96,10 +93,10 @@ final class SMCKitTests: XCTestCase {
     }
 
     func testSensorReadingCodableRoundTrip() throws {
-        let reading = SensorReading(id: "TC0C", name: "CPU Core 0", group: .cpuCore, celsius: 72.5)
+        let reading = SensorReading(name: "CPU Core 0", group: .cpuCore, value: 72.5)
         let data = try JSONEncoder().encode(reading)
         let decoded = try JSONDecoder().decode(SensorReading.self, from: data)
-        XCTAssertEqual(decoded.id, "TC0C")
+        XCTAssertEqual(decoded.id, "CPU Core 0")
         XCTAssertEqual(decoded.value, 72.5)
         XCTAssertEqual(decoded.group, .cpuCore)
     }
@@ -107,10 +104,10 @@ final class SMCKitTests: XCTestCase {
     // MARK: - AggregationMode
 
     func testAggregationModeCodable() throws {
-        let settings = ProfileSettings(sources: [.cpuCore, .gpu], aggregation: .max, smoothingWindowSeconds: 5.0)
+        let settings = ProfileSettings(sources: [.cpuCore, .gpu], excludedSensors: [], aggregation: .max, spinUpTime: 0.0, spinDownTime: 5.0)
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(ProfileSettings.self, from: data)
         XCTAssertEqual(decoded.aggregation, .max)
-        XCTAssertEqual(decoded.smoothingWindowSeconds, 5.0)
+        XCTAssertEqual(decoded.spinDownTime, 5.0)
     }
 }

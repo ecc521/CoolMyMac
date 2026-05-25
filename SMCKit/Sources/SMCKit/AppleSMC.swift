@@ -137,6 +137,7 @@ private func doubleToSP78(_ value: Double) -> [UInt8] {
 final class AppleSMC: SMCProvider {
 
     private var connection: io_connect_t = 0
+    private var cachedThermalKeys: [(key: String, group: SensorGroup, name: String)]?
 
     init() throws {
         let service: io_service_t = IOServiceGetMatchingService(
@@ -165,8 +166,97 @@ final class AppleSMC: SMCProvider {
     // MARK: SMCProvider
 
     func readTemperatures(for groups: Set<SensorGroup>? = nil) throws -> [SensorReading] {
+        if cachedThermalKeys == nil {
+            var discovered: [(key: String, group: SensorGroup, name: String)] = []
+            
+            do {
+                let keyVal = try readKey("#KEY")
+                guard keyVal.bytes.count >= 4 else { throw SMCError.readFailed("Invalid #KEY size") }
+                let count = Int((UInt32(keyVal.bytes[0]) << 24) |
+                                (UInt32(keyVal.bytes[1]) << 16) |
+                                (UInt32(keyVal.bytes[2]) << 8)  |
+                                UInt32(keyVal.bytes[3]))
+                
+                for i in 0..<count {
+                    var inputStruct  = SMCKeyData_t()
+                    var outputStruct = SMCKeyData_t()
+                    inputStruct.data8 = SMC_CMD_READ_INDEX
+                    inputStruct.data32 = UInt32(i)
+                    
+                    do {
+                        try callSMC(&inputStruct, output: &outputStruct)
+                        let key = fromFourCC(outputStruct.key).trimmingCharacters(in: .init(charactersIn: "\0"))
+                        
+                        // Intel temperature keys start with 'T', have length of 4, and are followed by alphanumeric characters.
+                        guard key.hasPrefix("T"), key.count == 4 else { continue }
+                        
+                        // Skip common non-temperature keys starting with T
+                        if key == "TNum" || key == "TNUN" || key == "TC0T" || key == "TG0T" { continue }
+                        
+                        var group: SensorGroup = .other
+                        var readableName = key
+                        
+                        if key.hasPrefix("TC") {
+                            group = .cpuCore
+                            if key == "TC0P" {
+                                readableName = "CPU Package (\(key))"
+                            } else if key == "TC0D" {
+                                readableName = "CPU Die (\(key))"
+                            } else {
+                                readableName = "CPU Core (\(key))"
+                            }
+                        } else if key.hasPrefix("TG") || key.hasPrefix("Tg") {
+                            group = .gpu
+                            if key == "TG0D" || key == "TGDD" {
+                                readableName = "GPU Die (\(key))"
+                            } else if key == "TG0P" {
+                                readableName = "GPU Proximity (\(key))"
+                            } else {
+                                readableName = "GPU (\(key))"
+                            }
+                        } else if key.hasPrefix("TH") || key.hasPrefix("Th") {
+                            group = .enclosure
+                            readableName = "Heatsink (\(key))"
+                        } else if key.hasPrefix("TS") || key.hasPrefix("Ts") {
+                            group = .enclosure
+                            readableName = "Enclosure (\(key))"
+                        } else if key.hasPrefix("TA") || key.hasPrefix("Ta") {
+                            group = .enclosure
+                            readableName = "Ambient (\(key))"
+                        } else if key.hasPrefix("TM") || key.hasPrefix("Tm") {
+                            group = .other
+                            readableName = "Memory (\(key))"
+                        } else if key.hasPrefix("TB") || key.hasPrefix("Tb") {
+                            group = .battery
+                            readableName = "Battery (\(key))"
+                        } else if key.hasPrefix("TN") || key.hasPrefix("Tn") {
+                            group = .nand
+                            readableName = "Storage (\(key))"
+                        } else if key.hasPrefix("TW") || key.hasPrefix("Tw") {
+                            group = .wireless
+                            readableName = "Wireless (\(key))"
+                        } else if key.hasPrefix("TP") || key.hasPrefix("Tp") {
+                            group = .vrm
+                            readableName = "Power/PCH (\(key))"
+                        } else {
+                            readableName = "System (\(key))"
+                        }
+                        
+                        discovered.append((key: key, group: group, name: readableName))
+                    } catch {
+                        continue
+                    }
+                }
+            } catch {
+                // Fallback to static list if dynamic scanning fails
+                discovered = kTemperatureKeys.map { (key: $0.key, group: $0.group, name: $0.name) }
+            }
+            
+            cachedThermalKeys = discovered
+        }
+        
         var readings: [SensorReading] = []
-        for entry in kTemperatureKeys {
+        for entry in cachedThermalKeys! {
             if let groups = groups, !groups.contains(entry.group) { continue }
             do {
                 let celsius = try readTemperatureKey(entry.key)
