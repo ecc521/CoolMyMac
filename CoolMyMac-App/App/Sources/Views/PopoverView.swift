@@ -113,7 +113,8 @@ struct PopoverView: View {
             .padding(.bottom, 6)
         }
         .frame(width: 320)
-        .background(.regularMaterial)
+        .background(WindowClearer())
+        .background(VisualEffectView(material: .popover, blendingMode: .behindWindow))
         .onAppear { state.startRefreshing() }
         .onDisappear { state.stopRefreshing() }
     }
@@ -131,7 +132,7 @@ struct TempTileView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
             if let t = temp {
@@ -145,7 +146,8 @@ struct TempTileView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
+        .padding(10)
+        .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func tempColor(_ c: Double) -> Color {
@@ -196,7 +198,7 @@ struct PresetPickerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Profile")
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
 
@@ -375,5 +377,38 @@ struct HoverableIconButton: View {
         .help(helpText)
         .onHover { isHovered = $0 }
         .contentShape(Rectangle())
+    }
+}
+
+struct WindowClearer: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window {
+                window.isOpaque = false
+                window.backgroundColor = .clear
+            }
+        }
+        return view
+    }
+    
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+struct VisualEffectView: NSViewRepresentable {
+    var material: NSVisualEffectView.Material
+    var blendingMode: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.blendingMode = blendingMode
+        view.material = material
+        view.state = .active
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        nsView.material = material
+        nsView.blendingMode = blendingMode
     }
 }

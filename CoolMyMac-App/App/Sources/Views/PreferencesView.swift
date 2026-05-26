@@ -815,6 +815,7 @@ struct SensorsPrefsView: View {
                                         Text(group.rawValue)
                                             .font(.system(size: 12, weight: .semibold))
                                             .textCase(.uppercase)
+                                            .foregroundStyle(.primary)
                                         
                                         Spacer()
                                         
@@ -840,6 +841,7 @@ struct SensorsPrefsView: View {
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
                 .cornerRadius(8)
             }
         }
@@ -901,9 +903,9 @@ struct SensorRowView: View {
         let isHot = sensor.unit == .celsius && sensor.value > 80
         
         HStack {
-            
             Text(sensor.name)
                 .font(.system(size: 12))
+                .foregroundStyle(.primary)
                 .opacity(isExcluded ? 0.5 : 1.0)
                 
             Spacer()
