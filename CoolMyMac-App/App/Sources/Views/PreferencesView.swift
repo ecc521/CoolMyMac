@@ -766,10 +766,10 @@ struct SensorsPrefsView: View {
 
             if state.sensors.isEmpty {
                 if state.daemonStatus == .installed {
-                    Text("Waiting for sensor data from daemon...")
+                    Text("Waiting for sensor data from helper tool...")
                         .foregroundStyle(.tertiary)
                 } else {
-                    Text("Daemon required for sensors. Please install the daemon in the General tab.")
+                    Text("Helper tool required for sensors. Please install the helper tool in the General tab.")
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()

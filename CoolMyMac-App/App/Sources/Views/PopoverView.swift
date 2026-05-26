@@ -273,7 +273,7 @@ struct DaemonWarningBar: View {
                 .font(.system(size: 12))
             
             if status == .requiresApproval {
-                Text("Daemon needs approval.")
+                Text("Helper Tool needs approval.")
                     .font(.system(size: 11))
                     .foregroundStyle(.primary)
                 Spacer()
@@ -281,7 +281,7 @@ struct DaemonWarningBar: View {
                     DaemonManager.shared.openSystemSettingsForApproval()
                 }
             } else if status == .unreachable {
-                Text("Daemon disconnected.")
+                Text("Helper Tool disconnected.")
                     .font(.system(size: 11))
                     .foregroundStyle(.primary)
                 Spacer()
@@ -289,11 +289,11 @@ struct DaemonWarningBar: View {
                     Task { try? await DaemonManager.shared.repairDaemon() }
                 }
             } else {
-                Text("Daemon not installed.")
+                Text("Helper Tool not installed.")
                     .font(.system(size: 11))
                     .foregroundStyle(.primary)
                 Spacer()
-                HoverableTextButton(title: "Install Daemon") {
+                HoverableTextButton(title: "Install") {
                     Task { try? await DaemonManager.shared.installDaemon() }
                 }
             }
