@@ -133,8 +133,10 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
         guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess,
               let staticCode else { return false }
 
-        // Matches any binary signed under your Developer ID Application certificate.
-        let req = "anchor apple generic and certificate leaf[subject.OU] = \"G24X82SAVJ\""
+        // Matches the main CoolMyMac app bundle specifically.
+        // We require the exact bundle identifier so that the CLI tool (which is also signed by us)
+        // fails this check and correctly falls through to the allowUnprivilegedCLI restriction below.
+        let req = "anchor apple generic and identifier \"com.coolmymac.app\" and certificate leaf[subject.OU] = \"G24X82SAVJ\""
         var reqRef: SecRequirement?
         guard SecRequirementCreateWithString(req as CFString, [], &reqRef) == errSecSuccess,
               let reqRef else { return false }
