@@ -146,7 +146,7 @@ struct TempTileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(.tertiary, in: RoundedRectangle(cornerRadius: 10))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func tempColor(_ c: Double) -> Color {
