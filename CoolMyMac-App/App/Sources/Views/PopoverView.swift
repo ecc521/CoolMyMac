@@ -63,9 +63,7 @@ struct PopoverView: View {
                 .padding(.top, 10)
             } else if state.daemonStatus == .installed {
                 HStack {
-                    Image(systemName: "leaf.fill")
-                        .foregroundStyle(.green)
-                    Text("Passive Cooling")
+                    Text("No Fans Detected")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                     Spacer()
