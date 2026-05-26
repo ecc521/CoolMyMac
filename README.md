@@ -51,28 +51,28 @@ After launching CoolMyMac, open **Preferences** (click the gear icon) and click 
 
 ## Build from Source
 
-If you wish to compile CoolMyMac yourself instead of using the pre-compiled DMG, follow these steps.
+CoolMyMac is built entirely through Xcode. The Command Line Tool and Helper Tool are automatically compiled and embedded into the main App during the build process.
 
-### 1. Code Signing (Required for Daemon)
-Because macOS requires LaunchDaemons installed via `SMAppService` to be signed by the same Team ID as the host app, you **must** configure code signing manually before building:
+### 1. Clone the Repository
+```bash
+git clone https://github.com/ecc521/CoolMyMac.git
+cd CoolMyMac
+```
+
+### 2. Configure Code Signing (Required)
+Because macOS requires Helper Tools installed via `SMAppService` to be code-signed by the exact same Team ID as the host app, you **must** configure code signing before building:
 1. Open `CoolMyMac-App/CoolMyMac.xcodeproj` in Xcode.
-2. Select the `CoolMyMac` target -> **Signing & Capabilities**.
-3. Select your Personal Team or Apple Developer ID.
-4. Repeat this exact process for the `CoolMyMac-Daemon` target.
+2. Select the `CoolMyMac` project file in the Project Navigator.
+3. Select the `CoolMyMac` target -> **Signing & Capabilities**.
+4. Select your Personal Team or Apple Developer ID.
+5. Repeat this exact process for the `CoolMyMac-Daemon` target.
 
-### 2. Running the App
-Once signed, you can run the app directly from Xcode:
+### 3. Build and Run
+Once code signing is configured:
 1. Select the `CoolMyMac` scheme in the top bar.
 2. Hit **Cmd + R** (Run).
-3. The app will appear in your Mac's Menu Bar. Click the gear icon to open Preferences, and navigate to **General > Install Daemon** to activate fan control.
-
-### 3. Building the CLI
-The CLI is built using the Swift Package Manager.
-```bash
-cd CoolMyMac-CLI
-swift build -c release --arch arm64 --arch x86_64
-# The universal binary will be output to: .build/apple/Products/Release/CoolMyMacCLI
-```
+3. The app will compile (along with the embedded CLI and Daemon) and appear in your Mac's Menu Bar.
+4. Click the gear icon to open Preferences, and click **Install Helper Tool** to activate fan control.
 
 ## Contributing
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for more details on how to set up your environment and submit Pull Requests.
