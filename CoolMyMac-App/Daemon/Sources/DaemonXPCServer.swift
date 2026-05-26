@@ -8,7 +8,24 @@ import os.log
 
 private let xpcLogger = Logger(subsystem: "com.coolmymac.daemon", category: "XPCServer")
 
-let daemonVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+let daemonVersionString: String = {
+    // SMAppService runs the daemon directly from inside CoolMyMac.app/Contents/Library/LaunchServices/
+    if let exeURL = Bundle.main.executableURL {
+        let plistURL = exeURL
+            .deletingLastPathComponent() // LaunchServices
+            .deletingLastPathComponent() // Library
+            .deletingLastPathComponent() // Contents
+            .appendingPathComponent("Info.plist")
+        
+        if let data = try? Data(contentsOf: plistURL),
+           let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+           let version = plist["CFBundleShortVersionString"] as? String {
+            return version
+        }
+    }
+    // Fallback if somehow not running inside the app bundle
+    return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+}()
 
 final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
 
