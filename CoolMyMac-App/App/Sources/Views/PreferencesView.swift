@@ -155,7 +155,7 @@ struct GeneralPrefsView: View {
                         .tint(.orange)
                         .controlSize(.small)
                     } else {
-                        Button("Repair") {
+                        Button("Reload") {
                             Task { try? await DaemonManager.shared.repairDaemon() }
                         }
                         .buttonStyle(.bordered)
