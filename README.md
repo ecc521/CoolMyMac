@@ -10,13 +10,16 @@ A modern, lightweight (2MB) macOS fan control and thermal management utility for
   <img src="assets/screenshot.png" alt="CoolMyMac Menu Bar Interface" width="400">
 </p>
 
-## Table of Contents
-- [Installation](#installation)
-- [Features](#features)
-- [Architecture](#architecture)
-- [Build from Source](#build-from-source)
-- [Contributing](#contributing)
-- [License](#license)
+## Features
+- **Dynamic Menu Bar Icon**: Menu bar icon automatically shifts from green to red as your CPU/GPU gets hotter.
+- **Apple Silicon & Intel SMC Support**: Native, low-level IOKit sensor readings for package power, CPU/GPU temps, and clock speeds.
+- **Fan Curves**:
+  - `Quiet`: Leaves Apple's default thermal management fully in control.
+  - `Balanced`: Similar to Apple's defaults, but slightly more aggressive. _Allows fans to turn off_ (<40°C)
+  - `Performance`: Higher minimum RPMs and an aggressive ramp-up to max speed around 85°C.
+  - `Max`: Forces all fans to run at maximum speed.
+  - `Custom`: Anything you want! 
+- **Command Line Interface (CLI)**: `coolmymac` tool for scripting profile changes (`coolmymac temps`, `coolmymac fans`, `coolmymac profile set max`).
 
 ## Installation
 
@@ -32,17 +35,6 @@ Download the latest `CoolMyMac.dmg` from the [Releases](https://github.com/ecc52
 
 ### Post-Installation
 After launching CoolMyMac, open **Preferences** (click the gear icon) and click **Install Helper Tool** in the General tab. This is required for active fan control and the full sensor suite.
-
-## Features
-- **Dynamic Menu Bar Icon**: Menu bar icon automatically shifts from green to red as your CPU/GPU gets hotter.
-- **Apple Silicon & Intel SMC Support**: Native, low-level IOKit sensor readings for package power, CPU/GPU temps, and clock speeds.
-- **Fan Curves**:
-  - `Quiet`: Leaves Apple's default thermal management fully in control.
-  - `Balanced`: Similar to Apple's defaults, but slightly more aggressive. _Allows fans to turn off_ (<40°C)
-  - `Performance`: Higher minimum RPMs and an aggressive ramp-up to max speed around 85°C.
-  - `Max`: Forces all fans to run at maximum speed.
-  - `Custom`: Anything you want! 
-- **Command Line Interface (CLI)**: `coolmymac` tool for scripting profile changes (`coolmymac temps`, `coolmymac fans`, `coolmymac profile set max`).
 
 ## Architecture
 - **App**: A SwiftUI MenuBarExtra application containing the Preferences window.
