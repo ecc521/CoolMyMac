@@ -130,7 +130,7 @@ struct GeneralPrefsView: View {
                 .padding(4)
             }
 
-            GroupBox("Privileged Helper Tool") {
+            GroupBox("Helper Tool") {
                 HStack {
                     Circle()
                         .fill(daemonStatusColor)
@@ -254,7 +254,7 @@ struct GeneralPrefsView: View {
             if let ver = state.daemonVersion { return "Helper Tool running (v\(ver))" }
             return "Helper Tool running"
         case .notInstalled:     return "Helper Tool required"
-        case .requiresApproval: return "Background permission denied"
+        case .requiresApproval: return "Background permission missing"
         case .unreachable:      return "Helper Tool disconnected"
         case .unknown:          return "Status unknown"
         }
