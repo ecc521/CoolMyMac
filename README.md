@@ -19,6 +19,7 @@ A modern, lightweight (2MB) macOS fan control and thermal management utility for
   - `Performance`: Higher minimum RPMs and an aggressive ramp-up to max speed around 85°C.
   - `Max`: Forces all fans to run at maximum speed.
   - `Custom`: Anything you want! 
+- **Zero-Overhead Daemon**: Uses native `SMAppService` and XPC for secure, event-driven Inter-Process Communication. This means the background daemon uses virtually zero system resources and no CPU cycles while waiting for commands.
 - **Command Line Interface (CLI)**: `coolmymac` tool for scripting profile changes (`coolmymac temps`, `coolmymac fans`, `coolmymac profile set max`).
 
 ## Installation

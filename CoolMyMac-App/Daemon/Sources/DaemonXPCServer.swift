@@ -206,7 +206,7 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
             }
         } catch {
             xpcLogger.error("setActiveProfile failed: \(error.localizedDescription, privacy: .public)")
-            reply(error)
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
         }
     }
 
@@ -235,7 +235,7 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
             reply(nil)
         } catch {
             xpcLogger.error("saveCustomProfile failed: \(error.localizedDescription, privacy: .public)")
-            reply(error)
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
         }
     }
 
@@ -249,7 +249,7 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
             reply(nil)
         } catch {
             xpcLogger.error("deleteCustomProfile failed: \(error.localizedDescription, privacy: .public)")
-            reply(error)
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
         }
     }
 
