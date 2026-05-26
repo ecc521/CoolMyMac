@@ -30,6 +30,9 @@ brew install --cask coolmymac
 ### Method 2: DMG Download
 Download the latest `CoolMyMac.dmg` from the [Releases](https://github.com/ecc521/CoolMyMac/releases) page. Open the DMG and simply drag `CoolMyMac.app` to your `/Applications` folder.
 
+### Post-Installation
+After launching CoolMyMac, open **Preferences** (click the gear icon) and click **Install Helper Tool** in the General tab. This is required for active fan control.
+
 ## Features
 - **Dynamic Menu Bar Icon**: The icon automatically shifts from blue to red as your CPU/GPU gets hotter.
 - **Apple Silicon & Intel SMC Support**: Native, low-level IOKit sensor readings for package power, CPU/GPU temps, and clock speeds.
