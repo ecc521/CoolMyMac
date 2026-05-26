@@ -4,6 +4,7 @@
 
 import SwiftUI
 import SMCKit
+import ServiceManagement
 
 struct PreferencesView: View {
 
@@ -129,7 +130,7 @@ struct GeneralPrefsView: View {
                 .padding(4)
             }
 
-            GroupBox("Daemon") {
+            GroupBox("Privileged Helper Tool") {
                 HStack {
                     Circle()
                         .fill(daemonStatusColor)
@@ -139,15 +140,22 @@ struct GeneralPrefsView: View {
 
                     Spacer()
 
-                    if state.daemonStatus == .notInstalled || state.daemonStatus == .requiresApproval {
-                        Button("Install Daemon") {
+                    if state.daemonStatus == .notInstalled {
+                        Button("Install") {
                             Task { try? await DaemonManager.shared.installDaemon() }
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
                         .controlSize(.small)
+                    } else if state.daemonStatus == .requiresApproval {
+                        Button("Open Settings") {
+                            SMAppService.openSystemSettingsLoginItems()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                        .controlSize(.small)
                     } else {
-                        Button("Reload") {
+                        Button("Repair") {
                             Task { try? await DaemonManager.shared.repairDaemon() }
                         }
                         .buttonStyle(.bordered)
@@ -243,11 +251,11 @@ struct GeneralPrefsView: View {
     private var daemonStatusLabel: String {
         switch state.daemonStatus {
         case .installed:        
-            if let ver = state.daemonVersion { return "Daemon running (v\(ver))" }
-            return "Daemon running"
-        case .notInstalled:     return "Daemon not installed"
-        case .requiresApproval: return "Approval required — click to re-grant"
-        case .unreachable:      return "Daemon disconnected"
+            if let ver = state.daemonVersion { return "Helper Tool running (v\(ver))" }
+            return "Helper Tool running"
+        case .notInstalled:     return "Helper Tool required"
+        case .requiresApproval: return "Background permission denied"
+        case .unreachable:      return "Helper Tool disconnected"
         case .unknown:          return "Status unknown"
         }
     }
