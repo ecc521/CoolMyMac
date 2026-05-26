@@ -8,7 +8,7 @@ import os.log
 
 private let xpcLogger = Logger(subsystem: "com.coolmymac.daemon", category: "XPCServer")
 
-let daemonVersionString = "1.0.5"
+let daemonVersionString = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
 
 final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
 
