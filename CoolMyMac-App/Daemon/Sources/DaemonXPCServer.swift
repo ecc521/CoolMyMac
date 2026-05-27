@@ -8,7 +8,24 @@ import os.log
 
 private let xpcLogger = Logger(subsystem: "com.coolmymac.daemon", category: "XPCServer")
 
-let daemonVersionString = "1.0.3"
+let daemonVersionString: String = {
+    // SMAppService runs the daemon directly from inside CoolMyMac.app/Contents/Library/LaunchServices/
+    if let exeURL = Bundle.main.executableURL {
+        let plistURL = exeURL
+            .deletingLastPathComponent() // LaunchServices
+            .deletingLastPathComponent() // Library
+            .deletingLastPathComponent() // Contents
+            .appendingPathComponent("Info.plist")
+        
+        if let data = try? Data(contentsOf: plistURL),
+           let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: Any],
+           let version = plist["CFBundleShortVersionString"] as? String {
+            return version
+        }
+    }
+    // Fallback if somehow not running inside the app bundle
+    return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+}()
 
 final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
 
@@ -116,8 +133,10 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
         guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess,
               let staticCode else { return false }
 
-        // Matches any binary signed under your Developer ID Application certificate.
-        let req = "anchor apple generic and certificate leaf[subject.OU] = \"G24X82SAVJ\""
+        // Matches the main CoolMyMac app bundle specifically.
+        // We require the exact bundle identifier so that the CLI tool (which is also signed by us)
+        // fails this check and correctly falls through to the allowUnprivilegedCLI restriction below.
+        let req = "anchor apple generic and identifier \"com.coolmymac.app\" and certificate leaf[subject.OU] = \"G24X82SAVJ\""
         var reqRef: SecRequirement?
         guard SecRequirementCreateWithString(req as CFString, [], &reqRef) == errSecSuccess,
               let reqRef else { return false }
@@ -189,7 +208,7 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
             }
         } catch {
             xpcLogger.error("setActiveProfile failed: \(error.localizedDescription, privacy: .public)")
-            reply(error)
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
         }
     }
 
@@ -218,7 +237,7 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
             reply(nil)
         } catch {
             xpcLogger.error("saveCustomProfile failed: \(error.localizedDescription, privacy: .public)")
-            reply(error)
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
         }
     }
 
@@ -232,7 +251,7 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
             reply(nil)
         } catch {
             xpcLogger.error("deleteCustomProfile failed: \(error.localizedDescription, privacy: .public)")
-            reply(error)
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]))
         }
     }
 

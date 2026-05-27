@@ -4,10 +4,12 @@
 
 import SwiftUI
 import SMCKit
+import ServiceManagement
 
 struct PreferencesView: View {
 
     var state: AppState
+    @State private var isCLIInstalled: Bool = false
 
     @State private var selectedSection: PrefsSection = .general
 
@@ -15,6 +17,7 @@ struct PreferencesView: View {
         case general  = "General"
         case profiles = "Profiles"
         case sensors  = "Sensors"
+        case cli      = "CLI"
         case about    = "About"
 
         var id: String { rawValue }
@@ -24,6 +27,7 @@ struct PreferencesView: View {
             case .general:  return "gearshape"
             case .profiles: return "slider.horizontal.3"
             case .sensors:  return "thermometer.medium"
+            case .cli:      return "terminal"
             case .about:    return "info.circle"
             }
         }
@@ -43,6 +47,7 @@ struct PreferencesView: View {
                 case .general:  GeneralPrefsView(state: state)
                 case .profiles: ProfilesPrefsView(state: state)
                 case .sensors:  SensorsPrefsView(state: state)
+                case .cli:      CLIPrefsView(state: state)
                 case .about:    AboutPrefsView()
                 }
             }
@@ -129,7 +134,7 @@ struct GeneralPrefsView: View {
                 .padding(4)
             }
 
-            GroupBox("Daemon") {
+            GroupBox("Helper Tool") {
                 HStack {
                     Circle()
                         .fill(daemonStatusColor)
@@ -139,12 +144,19 @@ struct GeneralPrefsView: View {
 
                     Spacer()
 
-                    if state.daemonStatus == .notInstalled || state.daemonStatus == .requiresApproval {
-                        Button("Install Daemon") {
+                    if state.daemonStatus == .notInstalled {
+                        Button("Install") {
                             Task { try? await DaemonManager.shared.installDaemon() }
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.blue)
+                        .controlSize(.small)
+                    } else if state.daemonStatus == .requiresApproval {
+                        Button("Open Settings") {
+                            SMAppService.openSystemSettingsLoginItems()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
                         .controlSize(.small)
                     } else {
                         Button("Reload") {
@@ -155,50 +167,6 @@ struct GeneralPrefsView: View {
                     }
                 }
                 .padding(4)
-            }
-            
-            GroupBox("Command Line Tool") {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("coolmymac")
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                        Text("Control profiles and fans directly from the terminal.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    if isCLIInstalled {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Installed")
-                                .font(.system(size: 13))
-                        }
-                    } else {
-                        Button("Install CLI") {
-                            installCLI()
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                }
-                .padding(4)
-                
-                Divider()
-                
-                Form {
-                    Toggle("Allow Unprivileged CLI", isOn: Binding(
-                        get: { state.allowUnprivilegedCLI },
-                        set: { state.setAllowUnprivilegedCLI($0) }
-                    ))
-                    .help("Allows standard terminal commands to change profiles without requiring sudo.")
-                }
-                .padding(4)
-            }
-            .onAppear {
-                checkCLIStatus()
             }
             
             GroupBox("Advanced") {
@@ -243,43 +211,12 @@ struct GeneralPrefsView: View {
     private var daemonStatusLabel: String {
         switch state.daemonStatus {
         case .installed:        
-            if let ver = state.daemonVersion { return "Daemon running (v\(ver))" }
-            return "Daemon running"
-        case .notInstalled:     return "Daemon not installed"
-        case .requiresApproval: return "Approval required — click to re-grant"
-        case .unreachable:      return "Daemon disconnected"
+            if let ver = state.daemonVersion { return "Helper Tool running (v\(ver))" }
+            return "Helper Tool running"
+        case .notInstalled:     return "Helper Tool required"
+        case .requiresApproval: return "Background permission missing"
+        case .unreachable:      return "Helper Tool disconnected"
         case .unknown:          return "Status unknown"
-        }
-    }
-    
-    private func checkCLIStatus() {
-        let symlinkPath = "/usr/local/bin/coolmymac"
-        guard let destination = try? FileManager.default.destinationOfSymbolicLink(atPath: symlinkPath) else {
-            isCLIInstalled = false
-            return
-        }
-        guard let myExecPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac-cli").path else {
-            isCLIInstalled = false
-            return
-        }
-        isCLIInstalled = (destination == myExecPath)
-    }
-    
-    private func installCLI() {
-        guard let execPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac-cli").path else { return }
-        
-        let scriptSource = """
-        do shell script "mkdir -p /usr/local/bin && ln -sf \\"\(execPath)\\" /usr/local/bin/coolmymac" with administrator privileges
-        """
-        
-        var error: NSDictionary?
-        if let scriptObject = NSAppleScript(source: scriptSource) {
-            scriptObject.executeAndReturnError(&error)
-            if error == nil {
-                checkCLIStatus()
-            } else {
-                print("Failed to install CLI: \(String(describing: error))")
-            }
         }
     }
 }
@@ -289,6 +226,7 @@ struct GeneralPrefsView: View {
 struct ProfilesPrefsView: View {
 
     var state: AppState
+    @State private var isCLIInstalled: Bool = false
     @State private var selectedProfile: FanProfile? = nil
 
     var body: some View {
@@ -465,6 +403,7 @@ struct ProfileListRow: View {
 struct ProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
+    @State private var isCLIInstalled: Bool = false
     var onDelete: (() -> Void)? = nil
     var onSave: ((FanProfile) -> Void)? = nil
 
@@ -481,6 +420,7 @@ struct ProfileDetailView: View {
 struct BuiltInProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
+    @State private var isCLIInstalled: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -559,6 +499,7 @@ struct BuiltInProfileDetailView: View {
 struct CustomProfileDetailView: View {
     let profile: FanProfile
     var state: AppState
+    @State private var isCLIInstalled: Bool = false
     var onSave: ((FanProfile) -> Void)? = nil
     var onDelete: (() -> Void)? = nil
 
@@ -800,6 +741,7 @@ struct CurveBar: View {
 
 struct SensorsPrefsView: View {
     var state: AppState
+    @State private var isCLIInstalled: Bool = false
     @AppStorage("decimalResolution") private var decimalResolution: Int = 0
     @State private var expandedGroups: Set<SensorGroup> = []
 
@@ -824,10 +766,10 @@ struct SensorsPrefsView: View {
 
             if state.sensors.isEmpty {
                 if state.daemonStatus == .installed {
-                    Text("Waiting for sensor data from daemon...")
+                    Text("Waiting for sensor data from helper tool...")
                         .foregroundStyle(.tertiary)
                 } else {
-                    Text("Daemon required for sensors. Please install the daemon in the General tab.")
+                    Text("Helper tool required for sensors. Please install the helper tool in the General tab.")
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
@@ -873,6 +815,7 @@ struct SensorsPrefsView: View {
                                         Text(group.rawValue)
                                             .font(.system(size: 12, weight: .semibold))
                                             .textCase(.uppercase)
+                                            .foregroundStyle(.primary)
                                         
                                         Spacer()
                                         
@@ -898,6 +841,7 @@ struct SensorsPrefsView: View {
                     }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
                 .cornerRadius(8)
             }
         }
@@ -942,6 +886,7 @@ struct SensorRowView: View {
     let sensor: SensorReading
     let group: SensorGroup
     @Bindable var state: AppState
+    @State private var isCLIInstalled: Bool = false
     let decimalResolution: Int
     
     private var formatString: String {
@@ -958,9 +903,9 @@ struct SensorRowView: View {
         let isHot = sensor.unit == .celsius && sensor.value > 80
         
         HStack {
-            
             Text(sensor.name)
                 .font(.system(size: 12))
+                .foregroundStyle(.primary)
                 .opacity(isExcluded ? 0.5 : 1.0)
                 
             Spacer()
@@ -971,5 +916,98 @@ struct SensorRowView: View {
                 .opacity(isExcluded ? 0.5 : 1.0)
         }
         .padding(.vertical, 2)
+    }
+}
+
+// MARK: - CLI
+
+struct CLIPrefsView: View {
+
+    var state: AppState
+    @State private var isCLIInstalled: Bool = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Command Line Tool")
+                    .font(.title2).bold()
+
+                GroupBox("Command Line Tool") {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text("coolmymac")
+                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            Text("Control profiles and fans directly from the terminal.")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if isCLIInstalled {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundStyle(.green)
+                                Text("Installed")
+                                    .font(.system(size: 13))
+                            }
+                        } else {
+                            Button("Install CLI") {
+                                installCLI()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                    .padding(4)
+                    
+                    Divider()
+                    
+                    Form {
+                        Toggle("Allow Unprivileged CLI", isOn: Binding(
+                            get: { state.allowUnprivilegedCLI },
+                            set: { state.setAllowUnprivilegedCLI($0) }
+                        ))
+                        .help("Allows standard terminal commands to change profiles without requiring sudo.")
+                    }
+                    .padding(4)
+                }
+                .onAppear {
+                    checkCLIStatus()
+                }
+            }
+            .padding()
+        }
+    }
+
+    private func checkCLIStatus() {
+        let symlinkPath = "/usr/local/bin/coolmymac"
+        guard let destination = try? FileManager.default.destinationOfSymbolicLink(atPath: symlinkPath) else {
+            isCLIInstalled = false
+            return
+        }
+        guard let myExecPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac-cli").path else {
+            isCLIInstalled = false
+            return
+        }
+        isCLIInstalled = (destination == myExecPath)
+    }
+    
+    private func installCLI() {
+        guard let execPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac-cli").path else { return }
+        
+        let scriptSource = """
+        do shell script "mkdir -p /usr/local/bin && ln -sf \\"\(execPath)\\" /usr/local/bin/coolmymac" with administrator privileges
+        """
+        
+        var error: NSDictionary?
+        if let scriptObject = NSAppleScript(source: scriptSource) {
+            scriptObject.executeAndReturnError(&error)
+            if error == nil {
+                checkCLIStatus()
+            } else {
+                print("Failed to install CLI: \(String(describing: error))")
+            }
+        }
     }
 }

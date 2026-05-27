@@ -58,7 +58,11 @@ enum CLIContext {
             let profile = try await xpc.activeProfile()
             return .success(profile)
         } catch {
-            return .failure(.daemonRequired("Profile management requires the daemon to be running."))
+            let nsError = error as NSError
+            if nsError.domain == NSCocoaErrorDomain {
+                return .failure(.daemonRequired("Profile management requires the daemon to be running."))
+            }
+            return .failure(.profileError(error.localizedDescription))
         }
     }
 
@@ -68,7 +72,11 @@ enum CLIContext {
             let names = try await xpc.listProfiles()
             return .success(names)
         } catch {
-            return .failure(.daemonRequired("Profile management requires the daemon to be running."))
+            let nsError = error as NSError
+            if nsError.domain == NSCocoaErrorDomain {
+                return .failure(.daemonRequired("Profile management requires the daemon to be running."))
+            }
+            return .failure(.profileError(error.localizedDescription))
         }
     }
 
@@ -78,7 +86,11 @@ enum CLIContext {
             try await xpc.setActiveProfile(name)
             return .success(())
         } catch {
-            return .failure(.daemonRequired("Setting a profile requires the daemon to be running."))
+            let nsError = error as NSError
+            if nsError.domain == NSCocoaErrorDomain {
+                return .failure(.daemonRequired("Setting a profile requires the daemon to be running."))
+            }
+            return .failure(.profileError(error.localizedDescription))
         }
     }
 
@@ -119,6 +131,7 @@ enum CLIContextError: Error {
     case smcError(SMCError)
     case daemonRequired(String)
     case permissionDenied
+    case profileError(String)
     case unknown(Error)
 
     var message: String {
@@ -129,6 +142,8 @@ enum CLIContextError: Error {
             return "❌ \(msg)\n   Install the CoolMyMac app to start the daemon."
         case .permissionDenied:
             return "❌ Permission denied. Run with sudo for direct SMC access:\n   sudo coolmymac reset"
+        case .profileError(let msg):
+            return "❌ \(msg)"
         case .unknown(let e):
             return "❌ Unexpected error: \(e.localizedDescription)"
         }

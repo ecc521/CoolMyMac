@@ -16,6 +16,10 @@ If you are an AI coding assistant (like Claude, Cursor, Windsurf) operating in t
 4. **Code Signing**: Modifications to the Daemon require proper code signing with a Developer ID. If you add new capabilities or entitlements, ensure they match across both the App and the Daemon to satisfy `SMAppService` requirements.
 5. **Swift Concurrency**: This project targets macOS 15.0+ and adheres to strict Swift concurrency rules. Use `Sendable` types and actors where appropriate. If you must use `@unchecked Sendable`, strictly document why it is safe.
 
+## Release & Distribution
+- **DMG Creation**: To build, package, sign, and notarize the app for release, run `./scripts/release.sh`. This requires the `CoolMyMac-Notary` keychain profile to be configured on the host machine.
+- **Homebrew Cask**: The Homebrew formula is maintained via a Git submodule in `homebrew-coolmymac/`. When creating a new release, the SHA256 in `homebrew-coolmymac/Casks/coolmymac.rb` must be updated to match the final notarized DMG hash.
+
 ## Common Agent Tasks
 - To test compilation: run `xcodebuild clean build -project CoolMyMac-App/CoolMyMac.xcodeproj -scheme CoolMyMac ONLY_ACTIVE_ARCH=YES`
 - To test the CLI: run `cd CoolMyMac-CLI && swift build`
