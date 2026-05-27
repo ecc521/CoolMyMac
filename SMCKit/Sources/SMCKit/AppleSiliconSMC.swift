@@ -161,7 +161,7 @@ final class AppleSiliconSMC: SMCProvider {
                 var group: SensorGroup = .other
                 var readableName = key
                 
-                if key.hasPrefix("Tp") {
+                if key.hasPrefix("Tp") || key.hasPrefix("Tf") {
                     group = .cpuCore
                     readableName = "CPU P-Core (\(key))"
                 } else if key.hasPrefix("Te") {
