@@ -89,7 +89,9 @@ private func sp78ToDouble(_ bytes: [UInt8]) -> Double {
 }
 
 private func doubleToSP78(_ value: Double) -> [UInt8] {
-    let raw = UInt16(value * 4.0)
+    // Clamp to 16383 to prevent UInt16 overflow (16383 * 4 = 65532)
+    let clamped = min(max(value, 0.0), 16383.0)
+    let raw = UInt16(clamped * 4.0)
     return [UInt8(raw >> 8), UInt8(raw & 0xFF)]
 }
 
