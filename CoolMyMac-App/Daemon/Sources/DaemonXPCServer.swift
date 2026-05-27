@@ -133,6 +133,16 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
         guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess,
               let staticCode else { return false }
 
+        #if DEBUG
+        // During Xcode development, the binary may be signed Ad-Hoc without the root Developer Team ID.
+        // We gracefully degrade to checking just the embedded Bundle Identifier.
+        var dict: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, [], &dict) == errSecSuccess,
+              let info = dict as? [CFString: Any],
+              let id = info[kSecCodeInfoIdentifier] as? String else { return false }
+        
+        return id == "com.coolmymac.app" || id == "com.coolmymac.cli"
+        #else
         // Matches the main CoolMyMac app bundle specifically.
         // We require the exact bundle identifier so that the CLI tool (which is also signed by us)
         // fails this check and correctly falls through to the allowUnprivilegedCLI restriction below.
@@ -142,6 +152,7 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
               let reqRef else { return false }
 
         return SecStaticCodeCheckValidity(staticCode, [], reqRef) == errSecSuccess
+        #endif
     }
 }
 
