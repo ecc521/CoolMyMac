@@ -160,6 +160,12 @@ final class AppleSiliconSMC: SMCProvider {
                 let key = fromFourCC(oStruct.key)
                 if !key.hasPrefix("T") { continue }
                 
+                // Exclude static cluster TjMax/limit keys (e.g., Tf06, Tf16)
+                let chars = Array(key)
+                if chars.count == 4 && chars[0] == "T" && chars[1] == "f" && chars[2].isNumber && chars[3] == "6" {
+                    continue
+                }
+                
                 var group: SensorGroup = .other
                 var readableName = key
                 
