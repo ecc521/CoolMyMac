@@ -142,6 +142,9 @@ final class ThermalController: @unchecked Sendable {
 
     func readAllSensors() -> [SensorReading] {
         var allReadings = (try? smcController?.readTemperatures(for: nil)) ?? []
+        if let limits = try? smcController?.readLimits() {
+            allReadings.append(contentsOf: limits)
+        }
         let advancedMetrics = MetricsService.shared.fetchPowerAndClocks()
         allReadings.append(contentsOf: advancedMetrics)
         return allReadings
@@ -189,7 +192,12 @@ final class ThermalController: @unchecked Sendable {
             let globalSources = savedStrings.compactMap(SensorGroup.init(rawValue:))
             let groupsToRead = Set(globalSources.isEmpty ? [.cpuCore, .gpu] : globalSources)
 
-            let readings = try smc.readTemperatures(for: groupsToRead)
+            var readings = try smc.readTemperatures(for: groupsToRead)
+            if groupsToRead.contains(.limits) {
+                if let limits = try? smc.readLimits() {
+                    readings.append(contentsOf: limits)
+                }
+            }
             stateLock.lock()
             _latestReadings = readings
             stateLock.unlock()

@@ -230,7 +230,10 @@ final class AppState {
                     do {
                         let smc = try SMCController()
                         logger.info("SMCController init succeeded")
-                        let s = (try? smc.readTemperatures()) ?? []
+                        var s = (try? smc.readTemperatures()) ?? []
+                        if let limits = try? smc.readLimits() {
+                            s.append(contentsOf: limits)
+                        }
                         logger.info("readTemperatures returned \(s.count) sensors")
                         let f = (try? smc.readAllFans().map {
                             FanStatus(id: $0.id, name: $0.name, currentRPM: $0.currentRPM, minRPM: $0.minRPM, maxRPM: $0.maxRPM, isManaged: false)

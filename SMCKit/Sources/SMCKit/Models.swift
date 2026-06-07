@@ -10,6 +10,7 @@ public enum SensorUnit: String, Codable, Sendable {
     case celsius = "°C"
     case watts = "W"
     case megahertz = "MHz"
+    case percentage = "%"
 }
 
 /// A reading from a single sensor or metric.
@@ -19,12 +20,36 @@ public struct SensorReading: Codable, Identifiable, Sendable {
     public let group: SensorGroup  // Which group this sensor belongs to
     public let value: Double       // Current reading value
     public let unit: SensorUnit    // Unit of measurement
+    public let isLimit: Bool       // Flag to isolate thermal/performance limits
 
-    public init(name: String, group: SensorGroup, value: Double, unit: SensorUnit = .celsius) {
+    public init(name: String, group: SensorGroup, value: Double, unit: SensorUnit = .celsius, isLimit: Bool = false) {
         self.name = name
         self.group = group
         self.value = value
         self.unit = unit
+        self.isLimit = isLimit
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, group, value, unit, isLimit
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.group = try container.decode(SensorGroup.self, forKey: .group)
+        self.value = try container.decode(Double.self, forKey: .value)
+        self.unit = try container.decode(SensorUnit.self, forKey: .unit)
+        self.isLimit = try container.decodeIfPresent(Bool.self, forKey: .isLimit) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(group, forKey: .group)
+        try container.encode(value, forKey: .value)
+        try container.encode(unit, forKey: .unit)
+        try container.encode(isLimit, forKey: .isLimit)
     }
 }
 
@@ -39,6 +64,7 @@ public enum SensorGroup: String, Codable, CaseIterable, Sendable {
     case wireless = "Wireless"           // Intel only (TWxx wifi sensors)
     case power = "Package Power"         // Both (Intel: package_watts; Apple Silicon: combined/cpu/gpu mW)
     case clockSpeed = "Clock Speed"     // Both (Intel: package/cores; Apple Silicon: clusters)
+    case limits = "Performance Limit"   // Intel only (PLIMIT thermal limits)
     case other = "Other"                 // Both (Intel/Apple Silicon)
     
     public init?(rawValue: String) {
@@ -52,6 +78,7 @@ public enum SensorGroup: String, Codable, CaseIterable, Sendable {
         case "Wireless": self = .wireless
         case "Package Power": self = .power
         case "Clock Speed": self = .clockSpeed
+        case "Performance Limit", "LIMITS": self = .limits
         case "Other", "OTHER": self = .other
         default: return nil
         }

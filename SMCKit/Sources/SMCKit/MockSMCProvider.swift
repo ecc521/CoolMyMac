@@ -6,6 +6,7 @@ import Foundation
 public final class MockSMCProvider: SMCProvider, @unchecked Sendable {
     public var mockedSensors: [SensorReading] = []
     public var mockedFans: [FanStatus] = []
+    public var mockedLimits: [SensorReading] = []
 
     public var setFanMinRPMLog: [(index: Int, rpm: Int)] = []
     public var resetFanLog: [Int] = []
@@ -17,6 +18,11 @@ public final class MockSMCProvider: SMCProvider, @unchecked Sendable {
     public func readTemperatures(for groups: Set<SensorGroup>? = nil) throws -> [SensorReading] {
         if let error = shouldThrowError { throw error }
         return mockedSensors
+    }
+
+    public func readLimits() throws -> [SensorReading] {
+        if let error = shouldThrowError { throw error }
+        return mockedLimits
     }
 
     public func readFan(index: Int) throws -> FanStatus {

@@ -277,6 +277,24 @@ final class AppleSMC: SMCProvider {
         return readings
     }
 
+    func readLimits() throws -> [SensorReading] {
+        var inputStruct = SMCKeyData_t()
+        var outputStruct = SMCKeyData_t()
+        inputStruct.data8 = 11 // SMC_CMD_READ_PLIMIT
+        
+        try callSMC(&inputStruct, output: &outputStruct)
+        
+        guard outputStruct.result == 0 else {
+            throw SMCError.readFailed("SMC_CMD_READ_PLIMIT failed with result: \(outputStruct.result)")
+        }
+        
+        return [
+            SensorReading(name: "CPU Limit", group: .limits, value: Double(outputStruct.pLimitData.cpuPLimit), unit: .percentage, isLimit: true),
+            SensorReading(name: "GPU Limit", group: .limits, value: Double(outputStruct.pLimitData.gpuPLimit), unit: .percentage, isLimit: true),
+            SensorReading(name: "Memory Limit", group: .limits, value: Double(outputStruct.pLimitData.memPLimit), unit: .percentage, isLimit: true)
+        ]
+    }
+
     func fanCount() throws -> Int {
         let val = try readKey(kFanCountKey)
         guard val.bytes.count >= 1 else { return 0 }

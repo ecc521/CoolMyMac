@@ -62,7 +62,7 @@ struct TempsCommand: AsyncParsableCommand {
             // - .nand: Both (Intel: TNxx keys; Apple Silicon: Tnxx keys)
             // - .other: Both
             let grouped = Dictionary(grouping: filtered, by: \.group)
-            let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .vrm, .wireless, .battery, .enclosure, .nand, .other]
+            let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .limits, .vrm, .wireless, .battery, .enclosure, .nand, .other]
 
             for group in order {
                 guard let sensors = grouped[group], !sensors.isEmpty else { continue }
@@ -84,6 +84,10 @@ struct TempsCommand: AsyncParsableCommand {
                         arrow = ""
                     case .megahertz:
                         formattedValue = String(format: "%5.0f MHz", sensor.value)
+                        bar = ""
+                        arrow = ""
+                    case .percentage:
+                        formattedValue = String(format: "%5.0f%%", sensor.value)
                         bar = ""
                         arrow = ""
                     }
@@ -110,6 +114,7 @@ private extension SensorGroup {
         switch self {
         case .cpuCore:    return "CPU Cores"
         case .gpu:        return "GPU"
+        case .limits:     return "Performance Limits"
         case .nand:       return "Storage"
         case .battery:    return "Battery"
         case .enclosure:  return "Enclosure"

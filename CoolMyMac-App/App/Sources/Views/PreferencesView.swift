@@ -787,7 +787,7 @@ struct SensorsPrefsView: View {
                     // - .enclosure: Both (Intel: heatsink/ambient/skin; Apple Silicon: skin/ambient)
                     // - .nand: Both (Intel: TNxx keys; Apple Silicon: Tnxx keys)
                     // - .other: Both
-                    let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .vrm, .wireless, .battery, .enclosure, .nand, .other]
+                    let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .limits, .vrm, .wireless, .battery, .enclosure, .nand, .other]
 
                     ForEach(order, id: \.self) { group in
                         if let sensors = grouped[group] {
@@ -854,6 +854,7 @@ struct SensorsPrefsView: View {
         case .celsius: return decimalResolution == 1 ? "%.1f - %.1f°C" : "%.0f - %.0f°C"
         case .watts: return "%.2f - %.2f W"
         case .megahertz: return "%.0f - %.0f MHz"
+        case .percentage: return "%.0f - %.0f%%"
         }
     }
 }
@@ -894,6 +895,7 @@ struct SensorRowView: View {
         case .celsius: return decimalResolution == 1 ? "%.1f°C" : "%.0f°C"
         case .watts: return "%.2f W"
         case .megahertz: return "%.0f MHz"
+        case .percentage: return "%.0f%%"
         }
     }
     

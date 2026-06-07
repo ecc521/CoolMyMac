@@ -35,6 +35,7 @@ public enum SMCError: Error, LocalizedError {
 
 public protocol SMCProvider {
     func readTemperatures(for groups: Set<SensorGroup>?) throws -> [SensorReading]
+    func readLimits() throws -> [SensorReading]
     func readFan(index: Int) throws -> FanStatus
     func fanCount() throws -> Int
     func setFanMinRPM(index: Int, rpm: Int) throws

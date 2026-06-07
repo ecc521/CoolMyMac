@@ -38,6 +38,13 @@ public final class SMCController {
         try provider.readTemperatures(for: groups)
     }
 
+    // MARK: - Thermal Limits
+
+    /// All available thermal limits from the SMC interface.
+    public func readLimits() throws -> [SensorReading] {
+        try provider.readLimits()
+    }
+
     // MARK: - Fan Control
 
     /// The number of physical fans in this system.

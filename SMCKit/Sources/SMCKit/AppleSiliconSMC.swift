@@ -234,6 +234,10 @@ final class AppleSiliconSMC: SMCProvider {
         return readings
     }
 
+    func readLimits() throws -> [SensorReading] {
+        return []
+    }
+
     // MARK: - Fan Control
 
     func fanCount() throws -> Int {

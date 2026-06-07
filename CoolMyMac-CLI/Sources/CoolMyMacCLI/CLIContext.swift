@@ -21,7 +21,10 @@ enum CLIContext {
             printDaemonFallbackMessage()
             do {
                 let controller = try SMCController()
-                let readings = try controller.readTemperatures(for: all ? nil : [.cpuCore, .gpu])
+                var readings = try controller.readTemperatures(for: all ? nil : [.cpuCore, .gpu])
+                if all, let limits = try? controller.readLimits() {
+                    readings.append(contentsOf: limits)
+                }
                 return .success(readings)
             } catch let smcError as SMCError {
                 return .failure(.smcError(smcError))
