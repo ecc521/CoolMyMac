@@ -10,20 +10,7 @@ struct ResetCommand: AsyncParsableCommand {
         abstract: "Reset all fans to Apple's automatic control (sets profile to System)"
     )
 
-    @Flag(name: .shortAndLong, help: "Skip confirmation prompt")
-    var yes: Bool = false
-
     mutating func run() async throws {
-        if !yes {
-            print("This will hand all fan control back to Apple's thermal management.")
-            print("Proceed? [y/N] ", terminator: "")
-            let input = readLine()?.lowercased() ?? ""
-            guard input == "y" || input == "yes" else {
-                print("Aborted.")
-                return
-            }
-        }
-
         let result = await CLIContext.resetAllFans()
 
         switch result {

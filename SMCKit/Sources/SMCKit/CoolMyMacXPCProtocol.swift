@@ -71,6 +71,14 @@ import Foundation
 
     /// Retrieves the current unprivileged terminal execution policy.
     func getAllowUnprivilegedCLI(withReply reply: @escaping (Bool, Error?) -> Void)
+
+    // MARK: - CLI Installation Management
+
+    /// Installs the command-line tool symlink securely via the privileged daemon.
+    func installCLI(withReply reply: @escaping (Error?) -> Void)
+
+    /// Uninstalls the command-line tool symlink securely via the privileged daemon.
+    func uninstallCLI(withReply reply: @escaping (Error?) -> Void)
 }
 
 /// Mach service name for XPC — must match the daemon's Info.plist MachServices entry.

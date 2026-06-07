@@ -263,6 +263,32 @@ public final class CoolMyMacClient: @unchecked Sendable {
             }
         }
     }
+
+    public func installCLI() async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.installCLI { error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume() } }
+            }
+        }
+    }
+
+    public func uninstallCLI() async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.uninstallCLI { error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume() } }
+            }
+        }
+    }
 }
 
 // MARK: - XPC Errors

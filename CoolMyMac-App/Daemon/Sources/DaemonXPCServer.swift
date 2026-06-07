@@ -323,6 +323,98 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
         reply(saved, nil)
     }
 
+    // MARK: - CLI Management
+
+    func installCLI(withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied."]))
+            return
+        }
+        
+        guard let daemonExe = Bundle.main.executableURL else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not locate daemon binary."]))
+            return
+        }
+        
+        let appContents = daemonExe
+            .deletingLastPathComponent() // LaunchServices
+            .deletingLastPathComponent() // Library
+            .deletingLastPathComponent() // Contents
+            
+        let cliPath = appContents
+            .appendingPathComponent("MacOS")
+            .appendingPathComponent("coolmymac-cli")
+            .path
+            
+        let symlinkPath = "/usr/local/bin/coolmymac"
+        let fm = FileManager.default
+        
+        do {
+            try fm.createDirectory(atPath: "/usr/local/bin", withIntermediateDirectories: true)
+            
+            if fm.fileExists(atPath: symlinkPath) {
+                try fm.removeItem(atPath: symlinkPath)
+            }
+            
+            try fm.createSymbolicLink(atPath: symlinkPath, withDestinationPath: cliPath)
+            xpcLogger.info("CLI installed successfully at '\(symlinkPath)' pointing to '\(cliPath)'")
+            reply(nil)
+        } catch {
+            xpcLogger.error("Failed to install CLI symlink: \(error.localizedDescription)")
+            reply(error)
+        }
+    }
+
+    func uninstallCLI(withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied."]))
+            return
+        }
+        
+        let symlinkPath = "/usr/local/bin/coolmymac"
+        let fm = FileManager.default
+        
+        guard fm.fileExists(atPath: symlinkPath) else {
+            reply(nil) // Already uninstalled
+            return
+        }
+        
+        // Safety validation: ensure it is a symbolic link and points to our cliPath
+        guard let destination = try? fm.destinationOfSymbolicLink(atPath: symlinkPath) else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 3, userInfo: [NSLocalizedDescriptionKey: "The file at \(symlinkPath) exists but is not a symbolic link. For safety, we will not delete it."]))
+            return
+        }
+        
+        guard let daemonExe = Bundle.main.executableURL else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 2, userInfo: [NSLocalizedDescriptionKey: "Could not locate daemon binary."]))
+            return
+        }
+        
+        let appContents = daemonExe
+            .deletingLastPathComponent() // LaunchServices
+            .deletingLastPathComponent() // Library
+            .deletingLastPathComponent() // Contents
+            
+        let expectedCliPath = appContents
+            .appendingPathComponent("MacOS")
+            .appendingPathComponent("coolmymac-cli")
+            .path
+            
+        guard destination == expectedCliPath else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 4, userInfo: [NSLocalizedDescriptionKey: "The symlink at \(symlinkPath) does not point to our CLI binary (points to: \(destination)). For safety, we will not delete it."]))
+            return
+        }
+        
+        do {
+            try fm.removeItem(atPath: symlinkPath)
+            xpcLogger.info("CLI uninstalled successfully from '\(symlinkPath)'")
+            reply(nil)
+        } catch {
+            xpcLogger.error("Failed to delete CLI symlink: \(error.localizedDescription)")
+            reply(error)
+        }
+    }
+
     // MARK: Private
 
     private func encode<T: Encodable>(_ value: T, reply: @escaping (Data?, Error?) -> Void) {

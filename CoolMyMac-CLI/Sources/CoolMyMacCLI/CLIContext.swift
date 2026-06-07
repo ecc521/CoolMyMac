@@ -89,15 +89,11 @@ enum CLIContext {
             try await xpc.setActiveProfile(name)
             return .success(())
         } catch {
-            let nsError = error as NSError
-            if nsError.domain == NSCocoaErrorDomain {
-                return .failure(.daemonRequired("Setting a profile requires the daemon to be running."))
-            }
-            return .failure(.profileError(error.localizedDescription))
+            return .failure(mapXPCError(error, daemonErrorMessage: "Setting a profile requires the daemon to be running."))
         }
     }
 
-    // MARK: - Reset (requires root if direct)
+    // MARK: - Reset (requires daemon)
 
     static func resetAllFans() async -> Result<Void, CLIContextError> {
         let xpc = CoolMyMacClient()
@@ -106,22 +102,21 @@ enum CLIContext {
             try await xpc.setActiveProfile("system")
             return .success(())
         } catch {
-            printDaemonFallbackMessage()
-            do {
-                let controller = try SMCController()
-                try controller.resetAllFans()
-                return .success(())
-            } catch let smcError as SMCError where smcError == .permissionDenied {
-                return .failure(.permissionDenied)
-            } catch let smcError as SMCError {
-                return .failure(.smcError(smcError))
-            } catch {
-                return .failure(.unknown(error))
-            }
+            return .failure(mapXPCError(error, daemonErrorMessage: "Resetting fans requires the daemon to be running."))
         }
     }
 
     // MARK: - Private
+
+    private static func mapXPCError(_ error: Error, daemonErrorMessage: String) -> CLIContextError {
+        let nsError = error as NSError
+        if nsError.domain == "com.coolmymac.daemon" {
+            return .permissionDenied
+        } else if nsError.domain == NSCocoaErrorDomain {
+            return .daemonRequired(daemonErrorMessage)
+        }
+        return .profileError(error.localizedDescription)
+    }
 
     private static func printDaemonFallbackMessage() {
         fputs("⚠️  Daemon not running. Attempting direct SMC access (requires sudo)...\n", stderr)
@@ -144,7 +139,7 @@ enum CLIContextError: Error {
         case .daemonRequired(let msg):
             return "❌ \(msg)\n   Install the CoolMyMac app to start the daemon."
         case .permissionDenied:
-            return "❌ Permission denied. Run with sudo for direct SMC access:\n   sudo coolmymac reset"
+            return "❌ Permission denied. Run command with 'sudo' or enable 'Allow Unprivileged CLI' in the App preferences."
         case .profileError(let msg):
             return "❌ \(msg)"
         case .unknown(let e):

@@ -947,11 +947,18 @@ struct CLIPrefsView: View {
                         Spacer()
                         
                         if isCLIInstalled {
-                            HStack {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
-                                Text("Installed")
-                                    .font(.system(size: 13))
+                            HStack(spacing: 12) {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                    Text("Installed")
+                                        .font(.system(size: 13))
+                                }
+                                Button("Uninstall CLI") {
+                                    uninstallCLI()
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
                             }
                         } else {
                             Button("Install CLI") {
@@ -963,8 +970,6 @@ struct CLIPrefsView: View {
                     }
                     .padding(4)
                     
-                    Divider()
-                    
                     Form {
                         Toggle("Allow Unprivileged CLI", isOn: Binding(
                             get: { state.allowUnprivilegedCLI },
@@ -973,6 +978,105 @@ struct CLIPrefsView: View {
                         .help("Allows standard terminal commands to change profiles without requiring sudo.")
                     }
                     .padding(4)
+
+                    if isCLIInstalled {
+                        Divider()
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Common Commands")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 6) {
+                                    Text("coolmymac --help")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.primary.opacity(0.05))
+                                        .cornerRadius(4)
+                                    
+                                    Button(action: { runInTerminal("coolmymac --help") }) {
+                                        Image(systemName: "terminal")
+                                            .font(.system(size: 10))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(.blue)
+                                    .help("Run in Terminal")
+                                    
+                                    Text("Show available commands and options")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                HStack(spacing: 6) {
+                                    Text("coolmymac fans")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.primary.opacity(0.05))
+                                        .cornerRadius(4)
+                                    
+                                    Button(action: { runInTerminal("coolmymac fans") }) {
+                                        Image(systemName: "terminal")
+                                            .font(.system(size: 10))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(.blue)
+                                    .help("Run in Terminal")
+                                    
+                                    Text("Display live fan speeds and status")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                HStack(spacing: 6) {
+                                    Text("coolmymac profile set balanced")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.primary.opacity(0.05))
+                                        .cornerRadius(4)
+                                    
+                                    Button(action: { runInTerminal("coolmymac profile set balanced") }) {
+                                        Image(systemName: "terminal")
+                                            .font(.system(size: 10))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(.blue)
+                                    .help("Run in Terminal")
+                                    
+                                    Text("Activate a specific fan profile")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                HStack(spacing: 6) {
+                                    Text("coolmymac reset")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.primary.opacity(0.05))
+                                        .cornerRadius(4)
+                                    
+                                    Button(action: { runInTerminal("coolmymac reset") }) {
+                                        Image(systemName: "terminal")
+                                            .font(.system(size: 10))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .foregroundStyle(.blue)
+                                    .help("Run in Terminal")
+                                    
+                                    Text("Reset all fans back to Apple auto control")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Text("Installed at: /usr/local/bin/coolmymac")
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 6)
+                        }
+                        .padding(4)
+                    }
                 }
                 .onAppear {
                     checkCLIStatus()
@@ -996,20 +1100,62 @@ struct CLIPrefsView: View {
     }
     
     private func installCLI() {
-        guard let execPath = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("coolmymac-cli").path else { return }
+        Task {
+            do {
+                try await state.client.installCLI()
+                await MainActor.run {
+                    checkCLIStatus()
+                }
+            } catch {
+                print("Failed to install CLI: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func uninstallCLI() {
+        Task {
+            do {
+                try await state.client.uninstallCLI()
+                await MainActor.run {
+                    checkCLIStatus()
+                }
+            } catch {
+                print("Failed to uninstall CLI: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func runInTerminal(_ command: String) {
+        let fileManager = FileManager.default
+        let tempDirectory = fileManager.temporaryDirectory
+        let commandFileURL = tempDirectory.appendingPathComponent("coolmymac_run.command")
         
-        let scriptSource = """
-        do shell script "mkdir -p /usr/local/bin && ln -sf \\"\(execPath)\\" /usr/local/bin/coolmymac" with administrator privileges
+        let scriptContent = """
+        #!/bin/bash
+        echo "=== CoolMyMac CLI Execute ==="
+        echo "Running: \(command)"
+        echo ""
+        if command -v coolmymac &> /dev/null; then
+            \(command)
+        else
+            echo "Error: coolmymac is not in your PATH or is not installed."
+            echo "Please make sure /usr/local/bin is in your shell PATH."
+        fi
+        echo ""
+        echo "Press any key to close this window..."
+        read -n 1
         """
         
-        var error: NSDictionary?
-        if let scriptObject = NSAppleScript(source: scriptSource) {
-            scriptObject.executeAndReturnError(&error)
-            if error == nil {
-                checkCLIStatus()
-            } else {
-                print("Failed to install CLI: \(String(describing: error))")
-            }
+        do {
+            try scriptContent.write(to: commandFileURL, atomically: true, encoding: .utf8)
+            var attributes = try fileManager.attributesOfItem(atPath: commandFileURL.path)
+            let permissions = attributes[.posixPermissions] as? UInt16 ?? 0o644
+            attributes[.posixPermissions] = permissions | 0o111
+            try fileManager.setAttributes(attributes, ofItemAtPath: commandFileURL.path)
+            
+            NSWorkspace.shared.open(commandFileURL)
+        } catch {
+            print("Failed to run in Terminal: \(error.localizedDescription)")
         }
     }
 }
