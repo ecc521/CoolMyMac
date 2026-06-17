@@ -14,6 +14,12 @@ final class MetricsService: @unchecked Sendable {
     private var lastFetchTime = Date()
     private var shutdownTimer: DispatchSourceTimer?
     
+    private var isAppleSilicon: Bool {
+        var isARM: Int32 = 0
+        var size = MemoryLayout<Int32>.size
+        return sysctlbyname("hw.optional.arm64", &isARM, &size, nil, 0) == 0 && isARM == 1
+    }
+    
     /// Starts the background powermetrics stream
     func start() {
         queue.async {
@@ -25,7 +31,8 @@ final class MetricsService: @unchecked Sendable {
             self.runningTask = task
             task.executableURL = URL(fileURLWithPath: "/usr/bin/powermetrics")
             // Run continuously every 1000ms, unbuffered, with initial usage to eliminate start delay
-            task.arguments = ["-i", "1000", "-b", "1", "--show-initial-usage", "--samplers", "cpu_power,gpu_power", "-f", "plist"]
+            let samplers = self.isAppleSilicon ? "cpu_power,gpu_power,ane_power" : "cpu_power,gpu_power"
+            task.arguments = ["-i", "1000", "-b", "1", "--show-initial-usage", "--samplers", samplers, "-f", "plist"]
             
             let pipe = Pipe()
             task.standardOutput = pipe
@@ -146,12 +153,16 @@ final class MetricsService: @unchecked Sendable {
                     let pkgW = (doubleValue(processor["combined_power"]) ?? 0.0) / 1000.0
                     let cpuW = (doubleValue(processor["cpu_power"]) ?? 0.0) / 1000.0
                     let gpuW = (doubleValue(processor["gpu_power"]) ?? 0.0) / 1000.0
+                    let aneW = (doubleValue(processor["ane_power"]) ?? 0.0) / 1000.0
+                    let dramW = (doubleValue(processor["dram_power"]) ?? 0.0) / 1000.0
                     
                     readings.append(SensorReading(name: "Package Total", group: .power, value: pkgW, unit: .watts))
                     readings.append(SensorReading(name: "CPU Core Total", group: .power, value: cpuW, unit: .watts))
                     readings.append(SensorReading(name: "GPU Core Total", group: .power, value: gpuW, unit: .watts))
+                    readings.append(SensorReading(name: "ANE Core Total", group: .power, value: aneW, unit: .watts))
+                    readings.append(SensorReading(name: "DRAM Total", group: .power, value: dramW, unit: .watts))
                     
-                    let uncore = max(0, pkgW - cpuW - gpuW)
+                    let uncore = max(0, pkgW - cpuW - gpuW - aneW - dramW)
                     if uncore > 0.01 {
                         readings.append(SensorReading(name: "System / Uncore", group: .power, value: uncore, unit: .watts))
                     }
