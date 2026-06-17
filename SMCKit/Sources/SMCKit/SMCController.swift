@@ -87,6 +87,13 @@ public final class SMCController {
     /// applying aggregation (MAX or AVERAGE) across the configured sensor groups.
     public func drivingTemperature(for settings: ProfileSettings) throws -> Double {
         let readings = try readTemperatures()
+        return SMCController.drivingTemperature(from: readings, settings: settings)
+    }
+
+    /// Computes the driving temperature from an already-fetched set of readings,
+    /// applying aggregation (MAX or AVERAGE) across the configured sensor groups.
+    /// Lets callers that have just polled sensors avoid a second SMC read.
+    public static func drivingTemperature(from readings: [SensorReading], settings: ProfileSettings) -> Double {
         let excluded = Set(settings.excludedSensors)
         let filtered = readings.filter { settings.sources.contains($0.group) && !excluded.contains($0.name) }
 

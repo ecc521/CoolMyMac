@@ -183,21 +183,30 @@ final class ThermalController: @unchecked Sendable {
         let isSystemMode = profile.curve.points.isEmpty
         updateProcessPriority(isSystemMode: isSystemMode)
 
-        // Read sensors so the UI can display them even in System mode
-        do {
-            let savedStrings = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "activeSensors") ?? [
-                SensorGroup.cpuCore.rawValue, 
-                SensorGroup.gpu.rawValue
-            ]
-            let globalSources = savedStrings.compactMap(SensorGroup.init(rawValue:))
-            let groupsToRead = Set(globalSources.isEmpty ? [.cpuCore, .gpu] : globalSources)
+        // Read the sensor configuration once per tick (shared by the UI read below
+        // and the fan-curve driving-temp calculation further down).
+        let defaults = UserDefaults(suiteName: "com.coolmymac.daemon")
+        let savedStrings = defaults?.stringArray(forKey: "activeSensors") ?? [
+            SensorGroup.cpuCore.rawValue,
+            SensorGroup.gpu.rawValue
+        ]
+        let savedExcluded = defaults?.stringArray(forKey: "excludedSensors") ?? []
+        let globalSources = savedStrings.compactMap(SensorGroup.init(rawValue:))
+        let activeGroups = globalSources.isEmpty ? [SensorGroup.cpuCore, .gpu] : globalSources
+        let groupsToRead = Set(activeGroups)
 
+        // Read sensors so the UI can display them even in System mode.
+        // Hoisted out of the do/catch so the fan-control block can reuse it
+        // instead of issuing a second (redundant) full SMC read.
+        var latestReadings: [SensorReading] = []
+        do {
             var readings = try smc.readTemperatures(for: groupsToRead)
             if groupsToRead.contains(.limits) {
                 if let limits = try? smc.readLimits() {
                     readings.append(contentsOf: limits)
                 }
             }
+            latestReadings = readings
             stateLock.lock()
             _latestReadings = readings
             stateLock.unlock()
@@ -226,23 +235,20 @@ final class ThermalController: @unchecked Sendable {
         // Apply Fan Profile
         do {
             // Global override: Use activeSensors from UserDefaults instead of the profile's sources
-            let savedStrings = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "activeSensors") ?? [
-                SensorGroup.cpuCore.rawValue, 
-                SensorGroup.gpu.rawValue
-            ]
-            let globalSources = savedStrings.compactMap(SensorGroup.init(rawValue:))
-            
-            let savedExcluded = UserDefaults(suiteName: "com.coolmymac.daemon")?.stringArray(forKey: "excludedSensors") ?? []
-            
             let settings = ProfileSettings(
-                sources: globalSources.isEmpty ? [.cpuCore, .gpu] : globalSources,
+                sources: activeGroups,
                 excludedSensors: savedExcluded,
                 aggregation: profile.settings.aggregation,
                 spinUpTime: profile.settings.spinUpTime,
                 spinDownTime: profile.settings.spinDownTime
             )
 
-            let drivingTemp = (try? smc.drivingTemperature(for: settings)) ?? 0.0
+            // Reuse the readings already polled above for the UI; they cover exactly
+            // the active sensor groups the curve aggregates over. Only fall back to a
+            // fresh SMC read on the rare tick where the read above failed.
+            let drivingTemp = latestReadings.isEmpty
+                ? ((try? smc.drivingTemperature(for: settings)) ?? 0.0)
+                : SMCController.drivingTemperature(from: latestReadings, settings: settings)
             let smoothedTemp = smooth(sample: drivingTemp, settings: profile.settings)
             let targetPercentage = profile.curve.targetPercentage(for: smoothedTemp)
 

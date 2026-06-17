@@ -36,8 +36,8 @@ struct CoolMyMacApp: App {
         MenuBarExtra {
             PopoverView(state: state)
                 .frame(width: 320)
-                .onAppear { state.isViewingAllSensors = true }
-                .onDisappear { state.isViewingAllSensors = false }
+                .onAppear { state.beginViewingAllSensors("popover") }
+                .onDisappear { state.endViewingAllSensors("popover") }
         } label: {
             MenuBarIconView(state: state)
         }

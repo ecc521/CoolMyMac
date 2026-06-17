@@ -32,13 +32,22 @@ xcodebuild clean build -project CoolMyMac-App/CoolMyMac.xcodeproj -scheme CoolMy
 # Build — omit CODE_SIGN_IDENTITY so keychain cert is used (required for daemon SMAppService registration)
 xcodebuild build -project CoolMyMac-App/CoolMyMac.xcodeproj -scheme CoolMyMac -configuration Debug ONLY_ACTIVE_ARCH=YES
 
-# Get build output path
-BUILD_DIR=$(xcodebuild -project CoolMyMac-App/CoolMyMac.xcodeproj -scheme CoolMyMac -configuration Debug -showBuildSettings ONLY_ACTIVE_ARCH=YES 2>/dev/null | awk '/BUILT_PRODUCTS_DIR/{print $3}')
+# Get build output path (anchor the match + exit so only the single BUILT_PRODUCTS_DIR value is captured)
+BUILD_DIR=$(xcodebuild -project CoolMyMac-App/CoolMyMac.xcodeproj -scheme CoolMyMac -configuration Debug -showBuildSettings ONLY_ACTIVE_ARCH=YES 2>/dev/null | awk '/ BUILT_PRODUCTS_DIR =/{print $3; exit}')
 
-# Quit running app, install, relaunch
+# Quit running app, then CLEAN reinstall — remove the old bundle first.
+# Do NOT `cp -Rf` over an existing bundle: it merges and leaves stale files that
+# break the app's code seal ("unsealed contents present in the bundle root"),
+# which makes SMAppService kill the embedded daemon with OS_REASON_CODESIGNING
+# (SIGKILL, Code Signature Invalid) — it then crash-loops every ~10s even though
+# `codesign --verify` on the daemon binary alone reports "valid on disk".
 pkill -x CoolMyMac; sleep 1
-sudo cp -Rf "$BUILD_DIR/CoolMyMac.app" /Applications/
+sudo rm -rf /Applications/CoolMyMac.app
+sudo cp -R "$BUILD_DIR/CoolMyMac.app" /Applications/
 open /Applications/CoolMyMac.app
+
+# Sanity-check the installed seal (want "valid on disk", no "unsealed contents"):
+# codesign --verify --strict --verbose=2 /Applications/CoolMyMac.app
 ```
 
 **Daemon lifecycle:**

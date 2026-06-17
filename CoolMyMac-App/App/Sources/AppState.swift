@@ -164,13 +164,27 @@ final class AppState {
         }
     }
 
-    var isViewingAllSensors: Bool = false {
-        didSet {
-            if isViewingAllSensors && !oldValue {
-                refresh()
-            }
+    // Tracks which UI surfaces currently need the full sensor sweep (popover,
+    // Sensors preferences tab). Ref-counted by token rather than a single Bool so
+    // that closing one surface can't clobber the flag for another that's still open.
+    // A Set (vs. a counter) is idempotent against SwiftUI's occasional duplicate or
+    // out-of-order onAppear/onDisappear callbacks.
+    private var fullSensorViewers: Set<String> = []
+
+    var isViewingAllSensors: Bool { !fullSensorViewers.isEmpty }
+
+    func beginViewingAllSensors(_ token: String) {
+        let wasEmpty = fullSensorViewers.isEmpty
+        fullSensorViewers.insert(token)
+        if wasEmpty {
+            refresh()  // immediate full read on 0 -> 1 transition
         }
     }
+
+    func endViewingAllSensors(_ token: String) {
+        fullSensorViewers.remove(token)
+    }
+
     private var hasCheckedDaemonVersion = false
 
     func refresh() {

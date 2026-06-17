@@ -845,8 +845,8 @@ struct SensorsPrefsView: View {
                 .cornerRadius(8)
             }
         }
-        .onAppear { state.isViewingAllSensors = true }
-        .onDisappear { state.isViewingAllSensors = false }
+        .onAppear { state.beginViewingAllSensors("sensorsPrefs") }
+        .onDisappear { state.endViewingAllSensors("sensorsPrefs") }
     }
     
     private func rangeFormat(for unit: SensorUnit) -> String {
