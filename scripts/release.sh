@@ -64,4 +64,39 @@ xcrun notarytool submit "$DMG_PATH" --keychain-profile "$NOTARY_PROFILE" --wait
 echo "📎 Stapling Notarization Ticket..."
 xcrun stapler staple "$DMG_PATH"
 
-echo "✅ Success! Release DMG is ready at: $DMG_PATH"
+echo "✅ DMG ready at: $DMG_PATH"
+
+# Read version from Info.plist
+VERSION=$(defaults read "$EXPORT_PATH/CoolMyMac.app/Contents/Info.plist" CFBundleShortVersionString)
+SHA256=$(shasum -a 256 "$DMG_PATH" | awk '{print $1}')
+
+echo ""
+echo "📋 Version:  $VERSION"
+echo "🔑 SHA256:   $SHA256"
+
+echo ""
+echo "🚀 Publishing GitHub release v$VERSION..."
+REPO="ecc521/CoolMyMac"
+gh release create "v$VERSION" \
+  --repo "$REPO" \
+  --title "CoolMyMac v$VERSION" \
+  --generate-notes \
+  "$DMG_PATH"
+
+echo ""
+echo "🍺 Updating Homebrew cask..."
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CASK="$REPO_ROOT/homebrew-coolmymac/Casks/coolmymac.rb"
+sed -i '' "s/version \".*\"/version \"$VERSION\"/" "$CASK"
+sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" "$CASK"
+cd "$REPO_ROOT/homebrew-coolmymac"
+git add Casks/coolmymac.rb
+git commit -m "chore: Update submodule for $VERSION release"
+git push
+cd "$REPO_ROOT"
+git add homebrew-coolmymac
+git commit -m "chore: Update submodule for $VERSION release"
+git push
+
+echo ""
+echo "✅ Done! Release v$VERSION is live."
