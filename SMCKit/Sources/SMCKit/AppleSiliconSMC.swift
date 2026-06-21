@@ -129,10 +129,22 @@ final class AppleSiliconSMC: SMCProvider {
 
     private var cachedThermalKeys: [(String, SensorGroup, String)]?
 
+    private func getCPUBrandString() -> String {
+        var size = 0
+        sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0)
+        guard size > 0 else { return "" }
+        var brand = [CChar](repeating: 0, count: size)
+        sysctlbyname("machdep.cpu.brand_string", &brand, &size, nil, 0)
+        return brand.withUnsafeBufferPointer { ptr in
+            guard let baseAddress = ptr.baseAddress else { return "" }
+            return String(cString: baseAddress)
+        }
+    }
+
     func readTemperatures(for groups: Set<SensorGroup>? = nil) throws -> [SensorReading] {
         if cachedThermalKeys == nil {
             var discovered: [(String, SensorGroup, String)] = []
-            
+
             var inputStruct  = SMCKeyData_t()
             var outputStruct = SMCKeyData_t()
 
@@ -149,27 +161,30 @@ final class AppleSiliconSMC: SMCProvider {
                             (UInt32(outputStruct.bytes.2) << 8)  |
                             UInt32(outputStruct.bytes.3))
 
+            let brand = getCPUBrandString()
+            let isM3 = brand.contains("M3")
+
             for i in 0..<count {
                 var iStruct = SMCKeyData_t()
                 var oStruct = SMCKeyData_t()
                 iStruct.data8 = 8 // READ_INDEX
                 iStruct.data32 = UInt32(i)
-                
+
                 if (try? callSMC(&iStruct, output: &oStruct)) == nil { continue }
-                
-                let key = fromFourCC(oStruct.key)
+
+                let key = fromFourCC(oStruct.key).trimmingCharacters(in: .init(charactersIn: "\0"))
                 if !key.hasPrefix("T") { continue }
-                
+
                 // Exclude static cluster TjMax/limit keys (e.g., Tf06, Tf16)
                 let chars = Array(key)
                 if chars.count == 4 && chars[0] == "T" && chars[1] == "f" && chars[2].isNumber && chars[3] == "6" {
                     continue
                 }
-                
+
                 var group: SensorGroup = .other
                 var readableName = key
-                
-                if key.hasPrefix("Tp") || key.hasPrefix("Tf") {
+
+                if (isM3 && key.hasPrefix("Tf")) || (!isM3 && key.hasPrefix("Tp")) {
                     group = .cpuCore
                     readableName = "CPU P-Core (\(key))"
                 } else if key.hasPrefix("Te") {
@@ -199,14 +214,14 @@ final class AppleSiliconSMC: SMCProvider {
                 } else {
                     readableName = "System (\(key))"
                 }
-                
+
                 discovered.append((key, group, readableName))
             }
             cachedThermalKeys = discovered
         }
 
         var readings: [SensorReading] = []
-        
+
         for (key, group, readableName) in cachedThermalKeys! {
             if let groups = groups, !groups.contains(group) {
                 continue
