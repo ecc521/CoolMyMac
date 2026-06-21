@@ -92,7 +92,7 @@
     /* ── HERO ── */
     .hero {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 56px;
       max-width: 1080px;
       margin: 0 auto;
@@ -107,7 +107,7 @@
 
     .hero-image {
       flex-shrink: 0;
-      width: 320px;
+      width: 360px;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
@@ -226,6 +226,13 @@
       align-items: center;
       gap: 12px;
       margin-bottom: 28px;
+      max-width: 420px;
+    }
+
+    .cta-group .btn-primary,
+    .cta-group .btn-secondary {
+      flex: 1;
+      justify-content: center;
     }
 
     .btn-primary {
