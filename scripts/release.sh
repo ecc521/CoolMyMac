@@ -94,9 +94,14 @@ git add Casks/coolmymac.rb
 git commit -m "chore: Update submodule for $VERSION release"
 git push
 cd "$REPO_ROOT"
-git add homebrew-coolmymac
-git commit -m "chore: Update submodule for $VERSION release"
-git push
+# Only commit submodule pointer if we're on a real branch (not detached HEAD)
+if git symbolic-ref --quiet HEAD > /dev/null 2>&1; then
+  git add homebrew-coolmymac
+  git commit -m "chore: Update submodule for $VERSION release"
+  git push
+else
+  echo "ℹ️  Detached HEAD — skipping parent repo submodule commit (do it from main after)"
+fi
 
 echo ""
 echo "✅ Done! Release v$VERSION is live."
