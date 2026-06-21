@@ -151,12 +151,19 @@ struct TempTileView: View {
     }
 
     private func tempColor(_ c: Double) -> Color {
-        if c >= 80.0 {
-            return .red
-        } else if c >= 65.0 {
-            return .orange
+        let minTemp = 50.0
+        let maxTemp = 90.0
+        let t = max(0, min(1, (c - minTemp) / (maxTemp - minTemp)))
+        // Hue: 0.33 = green, 0.0 = red.
+        let hue = 0.33 * (1.0 - t)
+
+        if colorScheme == .dark {
+            return Color(hue: hue, saturation: 0.85, brightness: 0.95)
         } else {
-            return .primary
+            // In light mode, interpolate brightness to ensure high contrast for green
+            // Green (t=0) gets a darker brightness (0.45) than Red (t=1, brightness=0.70)
+            let brightness = 0.45 + (0.25 * t)
+            return Color(hue: hue, saturation: 1.0, brightness: brightness)
         }
     }
 }
