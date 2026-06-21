@@ -14,7 +14,7 @@ A modern, lightweight (2MB) macOS fan control and thermal management utility for
 - **Dynamic Menu Bar Icon**: Menu bar icon automatically shifts from green to red as your CPU/GPU gets hotter.
 - **Apple Silicon & Intel SMC Support**: Native, low-level IOKit sensor readings for package power, CPU/GPU temps, and clock speeds.
 - **Fan Curves**:
-  - `Quiet`: Leaves Apple's default thermal management fully in control.
+  - `System`: Leaves Apple's default thermal management fully in control.
   - `Balanced`: Similar to Apple's defaults, but slightly more aggressive. _Allows fans to turn off_ (<40°C)
   - `Performance`: Higher minimum RPMs and an aggressive ramp-up to max speed around 85°C.
   - `Max`: Forces all fans to run at maximum speed.
