@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "coolmymac-site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "docs", "-p", "8743", "--no-clipboard"],
+      "port": 8743
+    }
+  ]
+}

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoolMyMac — Fan Control for macOS</title>
+  <meta name="description" content="A lightweight macOS fan control utility with a Menu Bar interface. Supports Apple Silicon and Intel. Free and open source.">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:     #16a34a;
+      --green-light: #dcfce7;
+      --green-mid: #86efac;
+      --text:      #111827;
+      --muted:     #6b7280;
+      --border:    #e5e7eb;
+      --surface:   #f9fafb;
+      --white:     #ffffff;
+      --radius:    12px;
+      --radius-sm: 8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: var(--white);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ── NAV ── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 20px 24px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+    }
+
+    .nav-logo img {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .nav-gh {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text) !important;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .nav-gh:hover { background: var(--surface); border-color: #d1d5db; }
+
+    .nav-gh svg { flex-shrink: 0; }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      padding: 72px 24px 56px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--green-light);
+      color: var(--green);
+      border-radius: 100px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      margin-bottom: 24px;
+    }
+
+    .badge-dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+    }
+
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 36px;
+      line-height: 1.65;
+    }
+
+    .cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--green);
+      color: #fff;
+      border-radius: 10px;
+      padding: 13px 26px;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-primary:hover { background: #15803d; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 24px;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--white);
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+
+    .btn-secondary:hover { background: var(--surface); border-color: #d1d5db; transform: translateY(-1px); }
+    .btn-secondary:active { transform: translateY(0); }
+
+    .hero-meta {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .hero-meta a { color: var(--green); }
+
+    /* ── BREW TERMINAL ── */
+    .brew-terminal {
+      display: inline-flex;
+      flex-direction: column;
+      background: #1e2128;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin: 0 auto 28px;
+      max-width: 420px;
+      width: 100%;
+      position: relative;
+      cursor: pointer;
+      border: 1px solid #2d3139;
+      transition: border-color 0.15s;
+    }
+
+    .brew-terminal:hover { border-color: #3d4350; }
+
+    .brew-terminal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .brew-terminal-dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .brew-terminal-dots span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3d4350;
+    }
+
+    .brew-copy-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #6b7280;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+      transition: color 0.15s;
+      user-select: none;
+    }
+
+    .brew-terminal:hover .brew-copy-btn { color: #9ca3af; }
+    .brew-terminal.copied .brew-copy-btn { color: #4ade80; }
+
+    .brew-lines {
+      font-family: "SF Mono", "Fira Code", Menlo, monospace;
+      font-size: 0.82rem;
+      line-height: 1.8;
+      text-align: left;
+    }
+
+    .brew-lines .prompt { color: #4ade80; }
+    .brew-lines .cmd    { color: #e2e8f0; }
+
+    /* ── SCREENSHOT ── */
+    .screenshot-wrap {
+      max-width: 480px;
+      margin: 0 auto 80px;
+      padding: 0 24px;
+      text-align: center;
+    }
+
+    .screenshot-wrap img {
+      width: 100%;
+      max-width: 360px;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+      border: 1px solid var(--border);
+    }
+
+    /* ── FEATURES ── */
+    .features {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 72px 24px;
+    }
+
+    .section-label {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin-bottom: 48px;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      max-width: 1024px;
+      margin: 0 auto;
+    }
+
+    .feature-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: box-shadow 0.15s;
+    }
+
+    .feature-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.07);
+    }
+
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--green-light);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 1.3rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── INSTALL ── */
+    .install {
+      padding: 80px 24px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .install-methods {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 40px;
+    }
+
+    @media (max-width: 600px) {
+      .install-methods { grid-template-columns: 1fr; }
+    }
+
+    .install-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .install-card.recommended {
+      border-color: var(--green-mid);
+      background: #f0fdf4;
+    }
+
+    .install-card-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 8px;
+    }
+
+    .install-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+
+    .install-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-bottom: 18px;
+      line-height: 1.55;
+    }
+
+    .code-block {
+      background: #1e2128;
+      color: #e2e8f0;
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Menlo, monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      position: relative;
+      overflow-x: auto;
+    }
+
+    .code-block .cmd-prompt {
+      color: #6b7280;
+      user-select: none;
+    }
+
+    .install-note {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      font-size: 0.875rem;
+      color: var(--muted);
+      margin-top: 24px;
+      line-height: 1.6;
+    }
+
+    .install-note strong { color: var(--text); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+    }
+
+    .footer-inner {
+      max-width: 1024px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.875rem;
+    }
+
+    .footer-left img {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+    }
+
+    .footer-right {
+      display: flex;
+      gap: 20px;
+      font-size: 0.875rem;
+    }
+
+    .footer-right a {
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+
+    .footer-right a:hover { color: var(--text); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 500px) {
+      .nav-links a:not(.nav-gh) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-logo">
+    <img src="assets/icon.png" alt="CoolMyMac icon">
+    CoolMyMac
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+    <a href="https://github.com/ecc521/CoolMyMac" class="nav-gh" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="badge">
+    <span class="badge-dot"></span>
+    Free &amp; Open Source · macOS 15+
+  </div>
+  <h1>Fan control that<br>stays out of your way</h1>
+  <p class="hero-sub">
+    CoolMyMac is a lightweight Menu Bar utility that gives you full control over your Mac's fans — without the complexity.
+    Built for Apple Silicon and Intel, under 2&nbsp;MB.
+  </p>
+  <div class="brew-terminal" onclick="copyBrew(this)" title="Click to copy">
+    <div class="brew-terminal-header">
+      <div class="brew-terminal-dots">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="brew-copy-btn">
+        <svg class="icon-copy" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <svg class="icon-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+        <span class="copy-label">Copy</span>
+      </div>
+    </div>
+    <div class="brew-lines">
+      <div><span class="prompt">$</span> <span class="cmd">brew tap ecc521/coolmymac</span></div>
+      <div><span class="prompt">$</span> <span class="cmd">brew install --cask coolmymac</span></div>
+    </div>
+  </div>
+
+  <div class="cta-group">
+    <a href="https://github.com/ecc521/CoolMyMac/releases/latest" class="btn-primary">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 12l-4.5-4.5 1.06-1.06L7.5 9.38V2h1v7.38l2.94-2.94L12.5 7.5 8 12z"/>
+        <path d="M2 13h12v1H2z"/>
+      </svg>
+      Download DMG
+    </a>
+    <a href="https://github.com/ecc521/CoolMyMac" class="btn-secondary" target="_blank" rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      View on GitHub
+    </a>
+  </div>
+  <p class="hero-meta">Or <a href="#install">see all install options ↓</a></p>
+</section>
+
+<!-- ── SCREENSHOT ── -->
+<div class="screenshot-wrap">
+  <img src="assets/screenshot.png" alt="CoolMyMac Menu Bar Interface showing fan speeds, temperatures, and profile selection" loading="lazy">
+</div>
+
+<!-- ── FEATURES ── -->
+<section class="features" id="features">
+  <p class="section-label">Features</p>
+  <h2 class="section-title">Everything you need, nothing you don't</h2>
+
+  <div class="features-grid">
+
+    <div class="feature-card">
+      <div class="feature-icon">🌡️</div>
+      <h3>Live Thermal Status</h3>
+      <p>The Menu Bar icon shifts from green to red as your CPU and GPU heat up — giving you an instant at-a-glance thermal read without opening anything.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🍎</div>
+      <h3>Apple Silicon &amp; Intel</h3>
+      <p>Native, low-level IOKit sensor readings on both architectures. Package power, CPU/GPU temperatures, and clock speeds — all from one app.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🎚️</div>
+      <h3>Fan Profiles</h3>
+      <p>Choose from <strong>System</strong> (Apple defaults), <strong>Balanced</strong>, <strong>Performance</strong>, or <strong>Max</strong> — or dial in your own <strong>Custom</strong> curve with any min/max RPM you like.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">⚡</div>
+      <h3>Zero-Overhead Daemon</h3>
+      <p>A secure background helper uses native <code>SMAppService</code> and XPC. It's purely event-driven — zero CPU cycles while idle, no polling loops.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🖥️</div>
+      <h3>Command Line Interface</h3>
+      <p>The bundled <code>coolmymac</code> CLI lets you script profile changes and query sensors from the terminal: <code>coolmymac profile set max</code>.</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <h3>Secure by Design</h3>
+      <p>The app runs unprivileged. Fan writes go through a code-signed XPC daemon — no sudo prompts, no persistent elevated processes outside of LaunchDaemon.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── INSTALL ── -->
+<section class="install" id="install">
+  <p class="section-label">Installation</p>
+  <h2 class="section-title">Get started in seconds</h2>
+
+  <div class="install-methods">
+
+    <div class="install-card recommended">
+      <p class="install-card-label">Recommended</p>
+      <h3>Homebrew</h3>
+      <p>Install CoolMyMac and the CLI tool in one step. Updates automatically with <code>brew upgrade</code>.</p>
+      <div class="code-block" onclick="copyBrew(this)" title="Click to copy" style="cursor:pointer; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="color:#6b7280; font-size:0.7rem; font-weight:500; letter-spacing:0.05em; font-family:-apple-system,sans-serif;">HOMEBREW</span>
+          <span class="brew-copy-btn" style="font-family:-apple-system,sans-serif;">
+            <svg class="icon-copy" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="copy-label">Copy</span>
+          </span>
+        </div>
+        <div><span class="cmd-prompt">$</span> brew tap ecc521/coolmymac</div>
+        <div><span class="cmd-prompt">$</span> brew install --cask coolmymac</div>
+      </div>
+    </div>
+
+    <div class="install-card">
+      <p class="install-card-label">Manual</p>
+      <h3>DMG Download</h3>
+      <p>Download the latest release, open the DMG, and drag CoolMyMac to your Applications folder.</p>
+      <a href="https://github.com/ecc521/CoolMyMac/releases/latest" class="btn-primary" style="display:inline-flex; font-size:0.9rem; padding:11px 20px;">
+        Download latest DMG
+      </a>
+    </div>
+
+  </div>
+
+  <div class="install-note">
+    <strong>After launching:</strong> open Preferences (gear icon → General tab) and click <strong>Install Helper Tool</strong>.
+    This one-time step installs the privileged daemon required for fan control and the full sensor suite.
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-left">
+      <img src="assets/icon.png" alt="">
+      <span style="color:var(--muted);">CoolMyMac · Licensed under <a href="https://github.com/ecc521/CoolMyMac/blob/main/LICENSE" style="color:var(--muted);text-decoration:underline;">GPLv3</a></span>
+    </div>
+    <div class="footer-right">
+      <a href="https://github.com/ecc521/CoolMyMac" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/ecc521/CoolMyMac/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://github.com/ecc521/CoolMyMac/issues" target="_blank" rel="noopener">Issues</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function copyBrew(el) {
+    const text = 'brew tap ecc521/coolmymac\nbrew install --cask coolmymac';
+    navigator.clipboard.writeText(text).then(() => {
+      el.classList.add('copied');
+      const copyIcon = el.querySelector('.icon-copy');
+      const checkIcon = el.querySelector('.icon-check');
+      const label = el.querySelector('.copy-label');
+      if (copyIcon) copyIcon.style.display = 'none';
+      if (checkIcon) checkIcon.style.display = '';
+      if (label) label.textContent = 'Copied!';
+      setTimeout(() => {
+        el.classList.remove('copied');
+        if (copyIcon) copyIcon.style.display = '';
+        if (checkIcon) checkIcon.style.display = 'none';
+        if (label) label.textContent = 'Copy';
+      }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
