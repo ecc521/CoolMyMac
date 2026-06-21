@@ -175,7 +175,9 @@ final class AppleSiliconSMC: SMCProvider {
                 let key = fromFourCC(oStruct.key).trimmingCharacters(in: .init(charactersIn: "\0"))
                 if !key.hasPrefix("T") { continue }
 
-                // Exclude static cluster TjMax/limit keys (e.g., Tf06, Tf16)
+                // Exclude GPU Fabric Block max/limit registers (e.g., Tf06, Tf16).
+                // These are static aggregate readings, not live CPU core temps.
+                // They appear on both M3 (where Tf* = P-Core) and M4 (where Tf* = GPU Fabric).
                 let chars = Array(key)
                 if chars.count == 4 && chars[0] == "T" && chars[1] == "f" && chars[2].isNumber && chars[3] == "6" {
                     continue
