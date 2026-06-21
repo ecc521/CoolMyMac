@@ -28,15 +28,23 @@ struct MenuBarIconView: View {
                 EmptyView()
             case .iconAndTemp:
                 if let temp = state.cpuTemp {
-                    Text(String(format: decimalResolution == 1 ? "%.1f°" : "%.0f°", temp))
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(state.dynamicIconEnabled ? thermalColor : Color.primary)
+                    let fmt = String(format: decimalResolution == 1 ? "%.1f°" : "%.0f°", temp)
+                    let anchor = decimalResolution == 1 ? "99.9°" : "99°"
+                    ZStack {
+                        Text(anchor).hidden()
+                        Text(fmt)
+                    }
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(state.dynamicIconEnabled ? thermalColor : Color.primary)
                 }
             case .iconAndRPM:
                 if let rpm = state.fans.first?.currentRPM {
-                    Text("\(rpm)")
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(state.dynamicIconEnabled ? thermalColor : Color.primary)
+                    ZStack {
+                        Text("9999").hidden()
+                        Text("\(rpm)")
+                    }
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(state.dynamicIconEnabled ? thermalColor : Color.primary)
                 }
             }
         }
