@@ -97,8 +97,8 @@ struct PopoverView: View {
                 .padding(.top, 12)
 
             // MARK: 5. Warning bar (conditional — daemon missing or broken)
-            if state.daemonStatus == .notInstalled || state.daemonStatus == .requiresApproval || state.daemonStatus == .unreachable {
-                DaemonWarningBar(status: state.daemonStatus)
+            if state.daemonStatus != .installed {
+                DaemonWarningBar(status: state.daemonStatus, state: state)
                     .padding(.horizontal, 14)
                     .padding(.top, 8)
             }
@@ -156,7 +156,7 @@ struct TempTileView: View {
         let t = max(0, min(1, (c - minTemp) / (maxTemp - minTemp)))
         // Hue: 0.33 = green, 0.0 = red.
         let hue = 0.33 * (1.0 - t)
-
+        
         if colorScheme == .dark {
             return Color(hue: hue, saturation: 0.85, brightness: 0.95)
         } else {
@@ -269,37 +269,65 @@ struct PresetPill: View {
 struct DaemonWarningBar: View {
 
     var status: DaemonInstallStatus
+    var state: AppState
+    @State private var isDaemonBusy: Bool = false
+    @State private var daemonError: String? = nil
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
-                .font(.system(size: 12))
-            
-            if status == .requiresApproval {
-                Text("Helper Tool needs approval.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.primary)
-                Spacer()
-                HoverableTextButton(title: "Open Settings") {
-                    DaemonManager.shared.openSystemSettingsForApproval()
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if isDaemonBusy {
+                    ProgressView().controlSize(.mini)
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.system(size: 12))
                 }
-            } else if status == .unreachable {
-                Text("Helper Tool disconnected.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.primary)
-                Spacer()
-                HoverableTextButton(title: "Restart") {
-                    Task { try? await DaemonManager.shared.repairDaemon() }
+
+                switch status {
+                case .requiresApproval:
+                    Text("Helper Tool needs approval.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    HoverableTextButton(title: "Open Settings") {
+                        DaemonManager.shared.openSystemSettingsForApproval()
+                    }
+                case .unreachable:
+                    Text("Helper Tool disconnected.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    HoverableTextButton(title: "Repair") {
+                        performDaemonAction { try await DaemonManager.shared.repairDaemon() }
+                    }
+                    .disabled(isDaemonBusy)
+                case .unknown:
+                    Text("Helper Tool needs repair.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    HoverableTextButton(title: "Repair") {
+                        performDaemonAction { try await DaemonManager.shared.repairDaemon() }
+                    }
+                    .disabled(isDaemonBusy)
+                default:
+                    Text("Helper Tool not installed.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    HoverableTextButton(title: "Install") {
+                        performDaemonAction { try await DaemonManager.shared.installDaemon() }
+                    }
+                    .disabled(isDaemonBusy)
                 }
-            } else {
-                Text("Helper Tool not installed.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.primary)
-                Spacer()
-                HoverableTextButton(title: "Install") {
-                    Task { try? await DaemonManager.shared.installDaemon() }
-                }
+            }
+
+            if let error = daemonError {
+                Text(error)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(10)
@@ -308,6 +336,20 @@ struct DaemonWarningBar: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.orange.opacity(0.25), lineWidth: 1)
         )
+    }
+
+    private func performDaemonAction(_ action: @escaping () async throws -> Void) {
+        daemonError = nil
+        isDaemonBusy = true
+        Task {
+            do {
+                try await action()
+            } catch {
+                daemonError = error.localizedDescription
+            }
+            isDaemonBusy = false
+            state.refresh()
+        }
     }
 }
 
