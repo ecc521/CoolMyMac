@@ -90,13 +90,20 @@
     .nav-gh svg { flex-shrink: 0; }
 
     /* ── HERO ── */
+    .hero-badge-row {
+      text-align: center;
+      padding: 40px 48px 0;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
     .hero {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 56px;
       max-width: 1080px;
       margin: 0 auto;
-      padding: 72px 48px 64px;
+      padding: 28px 48px 64px;
     }
 
     .hero-text {
@@ -170,10 +177,11 @@
     }
 
     @media (max-width: 820px) {
+      .hero-badge-row { padding: 28px 24px 0; }
       .hero {
         flex-direction: column;
         text-align: center;
-        padding: 56px 24px 48px;
+        padding: 20px 24px 48px;
         gap: 40px;
       }
       .hero-text { text-align: center; }
@@ -563,12 +571,14 @@
 </nav>
 
 <!-- ── HERO ── -->
+<div class="hero-badge-row">
+  <div class="badge">
+    <span class="badge-dot"></span>
+    Free &amp; Open Source · macOS 15+
+  </div>
+</div>
 <section class="hero">
   <div class="hero-text">
-    <div class="badge">
-      <span class="badge-dot"></span>
-      Free &amp; Open Source · macOS 15+
-    </div>
     <h1>Fan control that<br>stays out of your way</h1>
     <p class="hero-sub">
       CoolMyMac is a lightweight Menu Bar utility that gives you full control over your Mac's fans — without the complexity.
