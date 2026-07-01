@@ -415,6 +415,41 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
         }
     }
 
+    // MARK: - Thermal Failsafe Floors
+
+    func setThermalFailsafeSpeeds(heavy: Double, critical: Double, withReply reply: @escaping (Error?) -> Void) {
+        guard canModify else {
+            reply(NSError(domain: "com.coolmymac.daemon", code: 1, userInfo: [NSLocalizedDescriptionKey: "Permission denied."]))
+            return
+        }
+        UserDefaults(suiteName: "com.coolmymac.daemon")?.set(heavy, forKey: "heavyFailsafeSpeed")
+        UserDefaults(suiteName: "com.coolmymac.daemon")?.set(critical, forKey: "criticalFailsafeSpeed")
+        reply(nil)
+    }
+
+    func getThermalFailsafeSpeeds(withReply reply: @escaping (Double, Double, Error?) -> Void) {
+        let savedHeavy = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "heavyFailsafeSpeed") ?? 0
+        let savedCritical = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "criticalFailsafeSpeed") ?? 0
+        let heavy = savedHeavy == 0 ? 0.50 : savedHeavy
+        let critical = savedCritical == 0 ? 1.00 : savedCritical
+        reply(heavy, critical, nil)
+    }
+
+    // MARK: - Daemon Self-Update
+
+    func restartDaemon(withReply reply: @escaping (Error?) -> Void) {
+        // Reply before killing ourselves so the client gets the acknowledgment.
+        reply(nil)
+        // Small delay to let the reply make it back before launchd kills this process.
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.15) {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            task.arguments = ["kickstart", "-k", "system/com.coolmymac.app.daemon"]
+            try? task.run()
+            task.waitUntilExit()
+        }
+    }
+
     // MARK: Private
 
     private func encode<T: Encodable>(_ value: T, reply: @escaping (Data?, Error?) -> Void) {

@@ -54,6 +54,9 @@ final class ThermalController: @unchecked Sendable {
 
     // Decaying EMA with hysteresis
     private var lastSmoothedTemp: Double = 0.0
+    
+    // Track the last recorded thermal state to avoid spamming the log on every poll cycle
+    private var lastThermalState: ProcessInfo.ThermalState = .nominal
 
     // Cached fan count — does not change at runtime on a given machine.
     // Read once at init and refreshed from the poll queue if needed.
@@ -243,6 +246,12 @@ final class ThermalController: @unchecked Sendable {
                 spinDownTime: profile.settings.spinDownTime
             )
 
+            // Retrieve failsafe floor settings from UserDefaults
+            let savedHeavy = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "heavyFailsafeSpeed") ?? 0
+            let savedCritical = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "criticalFailsafeSpeed") ?? 0
+            let heavyFloor = savedHeavy == 0 ? 0.50 : savedHeavy
+            let criticalFloor = savedCritical == 0 ? 1.00 : savedCritical
+
             // Reuse the readings already polled above for the UI; they cover exactly
             // the active sensor groups the curve aggregates over. Only fall back to a
             // fresh SMC read on the rare tick where the read above failed.
@@ -250,9 +259,51 @@ final class ThermalController: @unchecked Sendable {
                 ? ((try? smc.drivingTemperature(for: settings)) ?? 0.0)
                 : SMCController.drivingTemperature(from: latestReadings, settings: settings)
             let smoothedTemp = smooth(sample: drivingTemp, settings: profile.settings)
-            let targetPercentage = profile.curve.targetPercentage(for: smoothedTemp)
+            var targetPercentage = profile.curve.targetPercentage(for: smoothedTemp)
 
-            thermalLogger.debug("Driving temp: \(drivingTemp, privacy: .public)°C smoothed: \(smoothedTemp, privacy: .public)°C → target: \(Int(targetPercentage * 100), privacy: .public)%")
+            let thermalState = ProcessInfo.processInfo.thermalState
+            if thermalState != lastThermalState {
+                switch thermalState {
+                case .critical:
+                    thermalLogger.warning("Thermal pressure changed to CRITICAL. Enforcing minimum fan speed of \(Int(criticalFloor * 100))%.")
+                case .serious:
+                    thermalLogger.notice("Thermal pressure changed to SERIOUS (Heavy). Enforcing minimum fan speed of \(Int(heavyFloor * 100))%.")
+                case .fair:
+                    thermalLogger.info("Thermal pressure changed to FAIR.")
+                case .nominal:
+                    thermalLogger.info("Thermal pressure returned to NOMINAL.")
+                @unknown default:
+                    break
+                }
+                lastThermalState = thermalState
+            }
+
+
+            // Apply minimum failsafe floors based on thermal pressure state
+            var isFailsafeActive = false
+            var activeFloor = 0.0
+            switch thermalState {
+            case .critical:
+                if targetPercentage < criticalFloor {
+                    targetPercentage = criticalFloor
+                    isFailsafeActive = true
+                    activeFloor = criticalFloor
+                }
+            case .serious:
+                if targetPercentage < heavyFloor {
+                    targetPercentage = heavyFloor
+                    isFailsafeActive = true
+                    activeFloor = heavyFloor
+                }
+            default:
+                break
+            }
+
+            if isFailsafeActive {
+                thermalLogger.debug("Driving temp: \(drivingTemp, privacy: .public)°C smoothed: \(smoothedTemp, privacy: .public)°C → target overridden to failsafe floor: \(Int(activeFloor * 100))%")
+            } else {
+                thermalLogger.debug("Driving temp: \(drivingTemp, privacy: .public)°C smoothed: \(smoothedTemp, privacy: .public)°C → target: \(Int(targetPercentage * 100), privacy: .public)%")
+            }
 
             // Read fan boundaries from SMC to calculate target RPM per-fan based on percentage
             let allFans = try smc.readAllFans()

@@ -19,7 +19,9 @@ final class DaemonManager: ObservableObject {
     // MARK: - Status
 
     func currentStatus() -> DaemonInstallStatus {
-        switch service.status {
+        let s = service.status
+        logger.debug("SMAppService status: \(String(describing: s))")
+        switch s {
         case .enabled:               return .installed
         case .notRegistered:         return .notInstalled
         case .requiresApproval:      return .requiresApproval
@@ -33,11 +35,37 @@ final class DaemonManager: ObservableObject {
     func installDaemon() async throws {
         do {
             try service.register()
-            logger.info("Daemon registered via SMAppService")
+            // SMAppService status may not update synchronously after register().
+            // Poll until it settles (up to ~3 seconds) before returning.
+            let finalStatus = try await waitForStatus(timeout: 3.0)
+            logger.info("Daemon registered. Final status: \(String(describing: finalStatus))")
+            if finalStatus == .requiresApproval {
+                openSystemSettingsForApproval()
+            }
         } catch {
             logger.error("Failed to register daemon: \(error.localizedDescription, privacy: .public)")
+            // register() may throw on macOS 26+ when approval is required rather than
+            // transitioning status to .requiresApproval. Check the post-throw status
+            // and open System Settings if it's waiting for user approval.
+            // macOS 26 also does not reliably deliver the BTM notification.
+            if service.status == .requiresApproval {
+                openSystemSettingsForApproval()
+            }
             throw error
         }
+    }
+
+    // Polls service.status until it is no longer .notRegistered, or until timeout.
+    private func waitForStatus(timeout: Double) async throws -> SMAppService.Status {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let s = service.status
+            if s != .notRegistered {
+                return s
+            }
+            try await Task.sleep(nanoseconds: 300_000_000) // 0.3s
+        }
+        return service.status
     }
 
     // MARK: - Uninstall
@@ -64,10 +92,19 @@ final class DaemonManager: ObservableObject {
     // MARK: - Repair
 
     func repairDaemon() async throws {
-        // Unregister and re-register
+        logger.info("Repair: unregistering daemon (current status: \(String(describing: self.service.status)))")
         try? await uninstallDaemon()
-        try await Task.sleep(nanoseconds: 500_000_000)
-        try await installDaemon()
-        logger.info("Daemon repair attempted")
+        // Give BTM time to fully clear the old registration before re-registering.
+        // On dev builds without a version bump, re-registration may require user
+        // re-approval in System Settings (macOS 26+ LWCR update requirement).
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        logger.info("Repair: re-registering daemon")
+        do {
+            try await installDaemon()
+            logger.info("Repair: daemon re-registered successfully")
+        } catch {
+            logger.error("Repair: re-registration failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 }

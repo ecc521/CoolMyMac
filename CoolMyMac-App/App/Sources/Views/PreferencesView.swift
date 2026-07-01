@@ -72,6 +72,8 @@ struct GeneralPrefsView: View {
 
     var state: AppState
     @State private var isCLIInstalled: Bool = false
+    @State private var daemonError: String? = nil
+    @State private var isDaemonBusy: Bool = false
 
     var body: some View {
         ScrollView {
@@ -135,35 +137,45 @@ struct GeneralPrefsView: View {
             }
 
             GroupBox("Helper Tool") {
-                HStack {
-                    Circle()
-                        .fill(daemonStatusColor)
-                        .frame(width: 8, height: 8)
-                    Text(daemonStatusLabel)
-                        .font(.system(size: 13))
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Circle()
+                            .fill(daemonStatusColor)
+                            .frame(width: 8, height: 8)
+                        Text(daemonStatusLabel)
+                            .font(.system(size: 13))
 
-                    Spacer()
+                        Spacer()
 
-                    if state.daemonStatus == .notInstalled {
-                        Button("Install") {
-                            Task { try? await DaemonManager.shared.installDaemon() }
+                        if isDaemonBusy {
+                            ProgressView().controlSize(.small)
+                        } else if state.daemonStatus == .notInstalled {
+                            Button("Install") {
+                                performDaemonAction { try await DaemonManager.shared.installDaemon() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.blue)
+                            .controlSize(.small)
+                        } else if state.daemonStatus == .requiresApproval {
+                            Button("Open Settings") {
+                                SMAppService.openSystemSettingsLoginItems()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.orange)
+                            .controlSize(.small)
+                        } else {
+                            Button("Repair") {
+                                performDaemonAction { try await DaemonManager.shared.repairDaemon() }
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.blue)
-                        .controlSize(.small)
-                    } else if state.daemonStatus == .requiresApproval {
-                        Button("Open Settings") {
-                            SMAppService.openSystemSettingsLoginItems()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.orange)
-                        .controlSize(.small)
-                    } else {
-                        Button("Reload") {
-                            Task { try? await DaemonManager.shared.repairDaemon() }
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
+                    }
+
+                    if let error = daemonError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
                 }
                 .padding(4)
@@ -187,6 +199,37 @@ struct GeneralPrefsView: View {
                     )) {
                         Text("0 (e.g. 45°C)").tag(0)
                         Text("1 (e.g. 45.1°C)").tag(1)
+                    }
+                }
+                .padding(4)
+            }
+
+            GroupBox("Thermal Failsafe Floors") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Overriding manual curves to run fans faster if macOS indicates high thermal pressure.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    
+                    Form {
+                        Picker("Heavy (Serious) Floor:", selection: Binding(
+                            get: { state.heavyFailsafeSpeed },
+                            set: { state.setThermalFailsafeSpeeds(heavy: $0, critical: state.criticalFailsafeSpeed) }
+                        )) {
+                            Text("Disabled").tag(0.0)
+                            ForEach(Array(stride(from: 10, through: 100, by: 5)), id: \.self) { pct in
+                                Text("\(pct)%").tag(Double(pct) / 100.0)
+                            }
+                        }
+
+                        Picker("Critical Floor:", selection: Binding(
+                            get: { state.criticalFailsafeSpeed },
+                            set: { state.setThermalFailsafeSpeeds(heavy: state.heavyFailsafeSpeed, critical: $0) }
+                        )) {
+                            Text("Disabled").tag(0.0)
+                            ForEach(Array(stride(from: 10, through: 100, by: 5)), id: \.self) { pct in
+                                Text("\(pct)%").tag(Double(pct) / 100.0)
+                            }
+                        }
                     }
                 }
                 .padding(4)
@@ -216,7 +259,21 @@ struct GeneralPrefsView: View {
         case .notInstalled:     return "Helper Tool required"
         case .requiresApproval: return "Background permission missing"
         case .unreachable:      return "Helper Tool disconnected"
-        case .unknown:          return "Status unknown"
+        case .unknown:          return "Helper Tool needs repair"
+        }
+    }
+
+    private func performDaemonAction(_ action: @escaping () async throws -> Void) {
+        daemonError = nil
+        isDaemonBusy = true
+        Task {
+            do {
+                try await action()
+            } catch {
+                daemonError = error.localizedDescription
+            }
+            isDaemonBusy = false
+            state.refresh()
         }
     }
 }

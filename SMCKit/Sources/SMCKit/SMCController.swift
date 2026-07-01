@@ -99,11 +99,13 @@ public final class SMCController {
 
         guard !filtered.isEmpty else { return 0.0 }
 
+        let normalizedValues = filtered.map { $0.value }
+
         switch settings.aggregation {
         case .max:
-            return filtered.map(\.value).max() ?? 0.0
+            return normalizedValues.max() ?? 0.0
         case .average:
-            return filtered.map(\.value).reduce(0, +) / Double(filtered.count)
+            return normalizedValues.reduce(0, +) / Double(normalizedValues.count)
         }
     }
 }

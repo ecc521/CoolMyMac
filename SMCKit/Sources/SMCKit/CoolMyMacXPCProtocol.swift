@@ -79,6 +79,21 @@ import Foundation
 
     /// Uninstalls the command-line tool symlink securely via the privileged daemon.
     func uninstallCLI(withReply reply: @escaping (Error?) -> Void)
+
+    // MARK: - Thermal Failsafe Floors
+
+    /// Sets the minimum fan speed percentage when the system is in heavy or critical thermal pressure.
+    func setThermalFailsafeSpeeds(heavy: Double, critical: Double, withReply reply: @escaping (Error?) -> Void)
+
+    /// Retrieves the minimum fan speed percentage when the system is in heavy or critical thermal pressure.
+    func getThermalFailsafeSpeeds(withReply reply: @escaping (Double, Double, Error?) -> Void)
+
+    // MARK: - Daemon Self-Update
+
+    /// Restarts the daemon binary in-place via `launchctl kickstart -k` without touching the
+    /// SMAppService registration. Used when the app detects a version mismatch to pick up the
+    /// new binary without triggering LWCR re-approval (macOS 26+).
+    func restartDaemon(withReply reply: @escaping (Error?) -> Void)
 }
 
 /// Mach service name for XPC — must match the daemon's Info.plist MachServices entry.

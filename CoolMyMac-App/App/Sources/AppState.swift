@@ -3,6 +3,7 @@
 // Refreshed periodically from the XPC daemon connection.
 
 import Foundation
+import AppKit
 import SMCKit
 import Observation
 import os.log
@@ -43,6 +44,9 @@ final class AppState {
     @ObservationIgnored
     private let defaults = UserDefaults.standard
 
+    @ObservationIgnored
+    private var appActivationObserver: NSObjectProtocol?
+
     var iconDisplayMode: IconDisplayMode = {
         let saved = UserDefaults.standard.string(forKey: "iconDisplayMode") ?? ""
         return IconDisplayMode(rawValue: saved) ?? .iconAndTemp
@@ -75,10 +79,18 @@ final class AppState {
     }
 
     var allowUnprivilegedCLI: Bool = false
+    var heavyFailsafeSpeed: Double = 0.50
+    var criticalFailsafeSpeed: Double = 1.00
 
     func setAllowUnprivilegedCLI(_ allow: Bool) {
         allowUnprivilegedCLI = allow
         Task { try? await client.setAllowUnprivilegedCLI(allow) }
+    }
+
+    func setThermalFailsafeSpeeds(heavy: Double, critical: Double) {
+        heavyFailsafeSpeed = heavy
+        criticalFailsafeSpeed = critical
+        Task { try? await client.setThermalFailsafeSpeeds(heavy: heavy, critical: critical) }
     }
     
     var updateInterval: Double = {
@@ -117,16 +129,66 @@ final class AppState {
 
     var client = CoolMyMacClient()
     private var refreshTask: Task<Void, Never>?
+    private var currentRefreshTask: Task<Void, Never>?
     var updateChecker = UpdateChecker()
 
     // MARK: - Lifecycle
 
     init() {
+        syncStaticSettings()
         // Start refreshing immediately so data is preloaded
         startRefreshing()
-        
+
         Task {
             await updateChecker.checkForUpdates()
+        }
+
+        // When the user returns from System Settings (after granting daemon approval),
+        // the app becomes active again. Force a status re-check so the UI doesn't stay
+        // stuck on "requires approval" or "unknown" after the grant is made.
+        appActivationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.daemonStatus != .installed else { return }
+                self.refresh()
+            }
+        }
+    }
+
+    func syncStaticSettings() {
+        Task {
+            async let p = client.activeProfile()
+            async let c = client.getCustomProfiles()
+            async let u = client.getAllowUnprivilegedCLI()
+            async let tf = client.getThermalFailsafeSpeeds()
+            async let globalSensors = client.getActiveSensors()
+            
+            if let fetchedProfile = try? await p {
+                self.activeProfile = fetchedProfile
+            }
+            if let fetchedCustom = try? await c {
+                let order = UserDefaults.standard.stringArray(forKey: "ProfileOrder") ?? ["balanced", "performance", "max"]
+                self.customProfiles = fetchedCustom.sorted { a, b in
+                    let aIdx = order.firstIndex(of: a.id) ?? Int.max
+                    let bIdx = order.firstIndex(of: b.id) ?? Int.max
+                    if aIdx == bIdx { return a.id < b.id }
+                    return aIdx < bIdx
+                }
+            }
+            if let fetchedAllowCLI = try? await u {
+                self.allowUnprivilegedCLI = fetchedAllowCLI
+            }
+            if let fetchedThermalFailsafe = try? await tf {
+                self.heavyFailsafeSpeed = fetchedThermalFailsafe.heavy
+                self.criticalFailsafeSpeed = fetchedThermalFailsafe.critical
+            }
+            if let globalSensors = try? await globalSensors {
+                self.activeSensors = Set(globalSensors.groups)
+                self.excludedSensors = Set(globalSensors.excludedSensors)
+            }
         }
     }
 
@@ -160,6 +222,9 @@ final class AppState {
             refreshSubscribers = 0
             refreshTask?.cancel()
             refreshTask = nil
+            currentRefreshTask?.cancel()
+            currentRefreshTask = nil
+            isRefreshing = false
             client.disconnect() // Disconnect from XPC so daemon can suspend
         }
     }
@@ -177,6 +242,7 @@ final class AppState {
         let wasEmpty = fullSensorViewers.isEmpty
         fullSensorViewers.insert(token)
         if wasEmpty {
+            syncStaticSettings()
             refresh()  // immediate full read on 0 -> 1 transition
         }
     }
@@ -188,13 +254,27 @@ final class AppState {
     private var hasCheckedDaemonVersion = false
 
     func refresh() {
-        Task { @MainActor in
-            let baseStatus = DaemonManager.shared.currentStatus()
+        currentRefreshTask?.cancel()
+        isRefreshing = true
+        
+        currentRefreshTask = Task { @MainActor in
+            defer {
+                if !Task.isCancelled {
+                    isRefreshing = false
+                }
+            }
             
-            isRefreshing = true
+            let baseStatus = DaemonManager.shared.currentStatus()
             let isReachable = await client.isDaemonReachable()
             
-            if baseStatus == .installed && !isReachable {
+            if Task.isCancelled { return }
+            
+            if isReachable {
+                // XPC reachability is the ground truth. If the daemon responds,
+                // it's running — trust this over SMAppService.status, which can
+                // lag or return stale values on macOS 26+ after approval grants.
+                daemonStatus = .installed
+            } else if baseStatus == .installed {
                 daemonStatus = .unreachable
                 hasCheckedDaemonVersion = false
             } else {
@@ -207,38 +287,41 @@ final class AppState {
                 if !hasCheckedDaemonVersion {
                     hasCheckedDaemonVersion = true
                     if let dVersion = try? await client.getDaemonVersion() {
+                        if Task.isCancelled { return }
                         daemonVersion = dVersion
                         if let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                            dVersion != appVersion {
-                            logger.info("Daemon version mismatch (\(dVersion) vs app \(appVersion)). Auto-repairing daemon...")
-                            try? await DaemonManager.shared.repairDaemon()
-                            isRefreshing = false
+                            // Daemon binary changed (version bump). Since the daemon is already
+                            // running and reachable, ask it to `launchctl kickstart -k` itself.
+                            // This swaps the binary in-place without touching the SMAppService
+                            // registration — avoids LWCR re-approval on macOS 26+.
+                            logger.info("Daemon version mismatch (\(dVersion) vs app \(appVersion)). Restarting daemon in-place...")
+                            try? await client.restartDaemon()
+                            client.disconnect()        // drop stale connection; daemon is restarting
+                            hasCheckedDaemonVersion = false
                             return
                         }
                     }
                 }
                 
-                async let s = isViewingAllSensors ? client.readAllSensors() : client.readSensors()
-                async let f = client.readFans()
-                async let p = client.activeProfile()
-                async let c = client.getCustomProfiles()
-                async let u = client.getAllowUnprivilegedCLI()
+                if Task.isCancelled { return }
                 
-                sensors = (try? await s) ?? sensors
-                fans = (try? await f) ?? fans
-                activeProfile = (try? await p) ?? activeProfile
-                let globalSensors = try? await client.getActiveSensors()
-                activeSensors = Set(globalSensors?.groups ?? [.cpuCore, .gpu])
-                excludedSensors = Set(globalSensors?.excludedSensors ?? [])
-                let fetchedCustom = (try? await c) ?? customProfiles
-                let order = UserDefaults.standard.stringArray(forKey: "ProfileOrder") ?? ["balanced", "performance", "max"]
-                customProfiles = fetchedCustom.sorted { a, b in
-                    let aIdx = order.firstIndex(of: a.id) ?? Int.max
-                    let bIdx = order.firstIndex(of: b.id) ?? Int.max
-                    if aIdx == bIdx { return a.id < b.id }
-                    return aIdx < bIdx
+                let viewingAll = isViewingAllSensors
+                async let s = viewingAll ? client.readAllSensors() : client.readSensors()
+                async let f = client.readFans()
+                
+                let fetchedSensors = try? await s
+                if Task.isCancelled { return }
+                
+                let fetchedFans = try? await f
+                if Task.isCancelled { return }
+                
+                if let fetchedSensors {
+                    sensors = fetchedSensors
                 }
-                if let allow = try? await u { allowUnprivilegedCLI = allow }
+                if let fetchedFans {
+                    fans = fetchedFans
+                }
             } else {
                 let fallback = await Task.detached {
                     do {
@@ -260,13 +343,14 @@ final class AppState {
                     }
                 }.value
                 
+                if Task.isCancelled { return }
+                
                 if !fallback.0.isEmpty { sensors = fallback.0 }
                 if !fallback.1.isEmpty { fans = fallback.1 }
                 activeProfile = .system
             }
             logger.info("Refresh complete. sensors=\(self.sensors.count) fans=\(self.fans.count)")
             lastSensorsUpdate = Date()
-            isRefreshing = false
         }
     }
 

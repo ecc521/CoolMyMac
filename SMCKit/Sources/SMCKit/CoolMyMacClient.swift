@@ -289,6 +289,56 @@ public final class CoolMyMacClient: @unchecked Sendable {
             }
         }
     }
+
+    public func setThermalFailsafeSpeeds(heavy: Double, critical: Double) async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.setThermalFailsafeSpeeds(heavy: heavy, critical: critical) { error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume() } }
+            }
+        }
+    }
+
+    public func getThermalFailsafeSpeeds() async throws -> (heavy: Double, critical: Double) {
+        try await withCheckedThrowingContinuation { cont in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+            
+            proxy.getThermalFailsafeSpeeds { heavy, critical, error in
+                if !hasResumed {
+                    hasResumed = true
+                    if let error {
+                        cont.resume(throwing: error)
+                    } else {
+                        cont.resume(returning: (heavy, critical))
+                    }
+                }
+            }
+        }
+    }
+
+    /// Asks the daemon to restart itself via `launchctl kickstart -k`.
+    /// The daemon replies before issuing the kickstart, so this call succeeds even though
+    /// the XPC connection will drop shortly after. Callers should ignore the subsequent
+    /// disconnection error and call disconnect() to clean up the stale connection.
+    public func restartDaemon() async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            var hasResumed = false
+            guard let proxy = getProxy(errorHandler: { error in
+                if !hasResumed { hasResumed = true; cont.resume(throwing: error) }
+            }) else { return }
+
+            proxy.restartDaemon { error in
+                if !hasResumed { hasResumed = true; if let error { cont.resume(throwing: error) } else { cont.resume() } }
+            }
+        }
+    }
 }
 
 // MARK: - XPC Errors
