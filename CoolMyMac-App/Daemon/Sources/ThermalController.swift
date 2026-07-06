@@ -148,7 +148,7 @@ final class ThermalController: @unchecked Sendable {
         if let limits = try? smcController?.readLimits() {
             allReadings.append(contentsOf: limits)
         }
-        let advancedMetrics = MetricsService.shared.fetchPowerAndClocks()
+        let advancedMetrics = MetricsService.shared.fetchPowerMetrics()
         allReadings.append(contentsOf: advancedMetrics)
         return allReadings
     }

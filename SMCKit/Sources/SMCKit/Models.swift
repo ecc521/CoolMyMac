@@ -9,7 +9,6 @@ import Foundation
 public enum SensorUnit: String, Codable, Sendable {
     case celsius = "°C"
     case watts = "W"
-    case megahertz = "MHz"
     case percentage = "%"
 }
 
@@ -63,7 +62,6 @@ public enum SensorGroup: String, Codable, CaseIterable, Sendable {
     case vrm = "VRM / Power"            // Both (Intel: TPCD/Power/PCH; Apple Silicon: VRM)
     case wireless = "Wireless"           // Intel only (TWxx wifi sensors)
     case power = "Package Power"         // Both (Intel: package_watts; Apple Silicon: combined/cpu/gpu mW)
-    case clockSpeed = "Clock Speed"     // Both (Intel: package/cores; Apple Silicon: clusters)
     case limits = "Performance Limit"   // Intel only (PLIMIT thermal limits)
     case other = "Other"                 // Both (Intel/Apple Silicon)
     
@@ -77,7 +75,6 @@ public enum SensorGroup: String, Codable, CaseIterable, Sendable {
         case "VRM / Power": self = .vrm
         case "Wireless": self = .wireless
         case "Package Power": self = .power
-        case "Clock Speed": self = .clockSpeed
         case "Performance Limit", "LIMITS": self = .limits
         case "Other", "OTHER": self = .other
         default: return nil

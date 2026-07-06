@@ -835,7 +835,6 @@ struct SensorsPrefsView: View {
                     let grouped = Dictionary(grouping: state.sensors, by: \.group)
                     // Sensor Group Display Order (Labeled by Architecture Support):
                     // - .power: Both (Intel: package_watts; Apple Silicon: combined/cpu/gpu mW)
-                    // - .clockSpeed: Both (Intel: core/package/GPU freqs; Apple Silicon: cluster/GPU freqs)
                     // - .cpuCore: Both (Intel: TCxx keys; Apple Silicon: Tpxx/cores)
                     // - .gpu: Both (Intel: TGxx keys; Apple Silicon: Tgxx/GPU core)
                     // - .vrm: Both (Intel: TPCD/Power/PCH; Apple Silicon: VRM keys)
@@ -844,7 +843,7 @@ struct SensorsPrefsView: View {
                     // - .enclosure: Both (Intel: heatsink/ambient/skin; Apple Silicon: skin/ambient)
                     // - .nand: Both (Intel: TNxx keys; Apple Silicon: Tnxx keys)
                     // - .other: Both
-                    let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .limits, .vrm, .wireless, .battery, .enclosure, .nand, .other]
+                    let order: [SensorGroup] = [.power, .cpuCore, .gpu, .limits, .vrm, .wireless, .battery, .enclosure, .nand, .other]
 
                     ForEach(order, id: \.self) { group in
                         if let sensors = grouped[group] {
@@ -930,7 +929,6 @@ struct SensorsPrefsView: View {
         switch unit {
         case .celsius: return decimalResolution == 1 ? "%.1f - %.1f°C" : "%.0f - %.0f°C"
         case .watts: return "%.2f - %.2f W"
-        case .megahertz: return "%.0f - %.0f MHz"
         case .percentage: return "%.0f - %.0f%%"
         }
     }
@@ -971,14 +969,13 @@ struct SensorRowView: View {
         switch sensor.unit {
         case .celsius: return decimalResolution == 1 ? "%.1f°C" : "%.0f°C"
         case .watts: return "%.2f W"
-        case .megahertz: return "%.0f MHz"
         case .percentage: return "%.0f%%"
         }
     }
-    
+
     var body: some View {
-        let isPowerOrClock = (group == .power || group == .clockSpeed)
-        let isExcluded = !isPowerOrClock && !state.activeSensors.contains(group)
+        // Power isn't a temperature group, so it can't be "excluded" from the driving-temp calc.
+        let isExcluded = group != .power && !state.activeSensors.contains(group)
         let isHot = sensor.unit == .celsius && sensor.value > 80
         
         HStack {

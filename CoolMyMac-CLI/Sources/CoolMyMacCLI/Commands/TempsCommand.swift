@@ -52,7 +52,6 @@ struct TempsCommand: AsyncParsableCommand {
 
             // Group by sensor group (Labeled by Architecture Support):
             // - .power: Both (Intel: package_watts; Apple Silicon: combined/cpu/gpu mW)
-            // - .clockSpeed: Both (Intel: core/package/GPU freqs; Apple Silicon: cluster/GPU freqs)
             // - .cpuCore: Both (Intel: TCxx keys; Apple Silicon: Tpxx/cores)
             // - .gpu: Both (Intel: TGxx keys; Apple Silicon: Tgxx/GPU core)
             // - .vrm: Both (Intel: TPCD/Power/PCH; Apple Silicon: VRM keys)
@@ -62,7 +61,7 @@ struct TempsCommand: AsyncParsableCommand {
             // - .nand: Both (Intel: TNxx keys; Apple Silicon: Tnxx keys)
             // - .other: Both
             let grouped = Dictionary(grouping: filtered, by: \.group)
-            let order: [SensorGroup] = [.power, .clockSpeed, .cpuCore, .gpu, .limits, .vrm, .wireless, .battery, .enclosure, .nand, .other]
+            let order: [SensorGroup] = [.power, .cpuCore, .gpu, .limits, .vrm, .wireless, .battery, .enclosure, .nand, .other]
 
             for group in order {
                 guard let sensors = grouped[group], !sensors.isEmpty else { continue }
@@ -80,10 +79,6 @@ struct TempsCommand: AsyncParsableCommand {
                         arrow = sensor.value >= 80 ? " ⚠️" : ""
                     case .watts:
                         formattedValue = String(format: "%5.2f W", sensor.value)
-                        bar = ""
-                        arrow = ""
-                    case .megahertz:
-                        formattedValue = String(format: "%5.0f MHz", sensor.value)
                         bar = ""
                         arrow = ""
                     case .percentage:
@@ -121,7 +116,6 @@ private extension SensorGroup {
         case .vrm:        return "VRM"
         case .wireless:   return "Wireless"
         case .power:      return "Power"
-        case .clockSpeed: return "Clock Speeds"
         case .other:      return "Other Sensors"
         }
     }

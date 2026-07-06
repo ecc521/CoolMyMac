@@ -269,7 +269,7 @@ final class AppState {
     func endViewingAllSensors(_ token: String) {
         fullSensorViewers.remove(token)
         if fullSensorViewers.isEmpty {
-            // Groups outside the driving set (clockSpeed, vrm, wireless, etc.) won't be
+            // Groups outside the driving set (vrm, wireless, power, etc.) won't be
             // refreshed again until a full-view surface reopens. Reset the flag so the
             // next reopen shows a loading state instead of quietly re-presenting whatever
             // values are still sitting in `sensors` from before as if they were current.

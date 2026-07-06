@@ -87,7 +87,7 @@ final class MetricsService: @unchecked Sendable {
     }
     
     /// Fetch instantly from cache
-    func fetchPowerAndClocks() -> [SensorReading] {
+    func fetchPowerMetrics() -> [SensorReading] {
         queue.sync {
             lastFetchTime = Date()
         }
@@ -165,87 +165,6 @@ final class MetricsService: @unchecked Sendable {
                     let uncore = max(0, pkgW - cpuW - gpuW - aneW - dramW)
                     if uncore > 0.01 {
                         readings.append(SensorReading(name: "System / Uncore", group: .power, value: uncore, unit: .watts))
-                    }
-                }
-            }
-            
-            // Clock Speeds (MHz)
-            if let processor = plist["processor"] as? [String: Any] {
-                if let clusters = processor["clusters"] as? [[String: Any]] {
-                    // Apple Silicon format
-                    var totalCounts: [String: Int] = [:]
-                    for cluster in clusters {
-                        if let name = cluster["name"] as? String {
-                            totalCounts[name, default: 0] += 1
-                        }
-                    }
-                    
-                    var currentCounts: [String: Int] = [:]
-                    for cluster in clusters {
-                        if let name = cluster["name"] as? String {
-                            if let cpus = cluster["cpus"] as? [[String: Any]], let firstCpu = cpus.first {
-                                if let freqHz = doubleValue(firstCpu["freq_hz"]) {
-                                    currentCounts[name, default: 0] += 1
-                                    let current = currentCounts[name, default: 0]
-                                    let total = totalCounts[name, default: 0]
-                                    
-                                    let baseName = name.replacingOccurrences(of: "-Cluster", with: "")
-                                    let displayName = total > 1 ? "\(baseName)\(current - 1)-CPU" : "\(baseName)-CPU"
-                                    
-                                    readings.append(SensorReading(name: displayName, group: .clockSpeed, value: freqHz / 1_000_000.0, unit: .megahertz))
-                                }
-                            }
-                        }
-                    }
-                } else if let packages = processor["packages"] as? [[String: Any]] {
-                    // Intel format
-                    for package in packages {
-                        if let cores = package["cores"] as? [[String: Any]] {
-                            for core in cores {
-                                if let coreId = core["core"] as? Int,
-                                   let cpus = core["cpus"] as? [[String: Any]] {
-                                    let freqs = cpus.compactMap { doubleValue($0["freq_hz"]) }
-                                    if !freqs.isEmpty {
-                                        let avgFreq = freqs.reduce(0.0, +) / Double(freqs.count)
-                                        readings.append(SensorReading(
-                                            name: "Core \(coreId)",
-                                            group: .clockSpeed,
-                                            value: avgFreq / 1_000_000.0,
-                                            unit: .megahertz
-                                        ))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Overall CPU Total
-                    if let freqHz = doubleValue(processor["freq_hz"]) {
-                        readings.append(SensorReading(
-                            name: "CPU Total",
-                            group: .clockSpeed,
-                            value: freqHz / 1_000_000.0,
-                            unit: .megahertz
-                        ))
-                    }
-                }
-            }
-            
-            // GPU Clock
-            if let gpuData = plist["gpu"] ?? plist["GPU"] {
-                if let gpuDict = gpuData as? [String: Any] {
-                    if let freq = doubleValue(gpuDict["freq_hz"]) {
-                        let mhz = freq > 1000000 ? freq / 1000000.0 : freq
-                        readings.append(SensorReading(name: "GPU", group: .clockSpeed, value: mhz, unit: .megahertz))
-                    }
-                } else if let gpuList = gpuData as? [[String: Any]] {
-                    for item in gpuList {
-                        let name = item["name"] as? String ?? "GPU"
-                        if let freq = doubleValue(item["freq_hz"]) ?? doubleValue(item["freq_mhz"]) {
-                            let mhz = freq > 1000000 ? freq / 1000000.0 : freq
-                            let displayName = name == "GPU" ? name : "GPU (\(name))"
-                            readings.append(SensorReading(name: displayName, group: .clockSpeed, value: mhz, unit: .megahertz))
-                        }
                     }
                 }
             }
