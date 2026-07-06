@@ -246,11 +246,12 @@ final class ThermalController: @unchecked Sendable {
                 spinDownTime: profile.settings.spinDownTime
             )
 
-            // Retrieve failsafe floor settings from UserDefaults
-            let savedHeavy = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "heavyFailsafeSpeed") ?? 0
-            let savedCritical = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "criticalFailsafeSpeed") ?? 0
-            let heavyFloor = savedHeavy == 0 ? 0.50 : savedHeavy
-            let criticalFloor = savedCritical == 0 ? 1.00 : savedCritical
+            // Retrieve failsafe floor settings from UserDefaults. 0.0 is a valid, explicit
+            // "Disabled" selection (see PreferencesView's failsafe pickers) — only fall back
+            // to the default when the key has never been written at all, not when it's 0.
+            let failsafeDefaults = UserDefaults(suiteName: "com.coolmymac.daemon")
+            let heavyFloor = (failsafeDefaults?.object(forKey: "heavyFailsafeSpeed") as? Double) ?? 0.50
+            let criticalFloor = (failsafeDefaults?.object(forKey: "criticalFailsafeSpeed") as? Double) ?? 1.00
 
             // Reuse the readings already polled above for the UI; they cover exactly
             // the active sensor groups the curve aggregates over. Only fall back to a

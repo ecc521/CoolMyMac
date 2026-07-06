@@ -894,6 +894,26 @@ struct SensorsPrefsView: View {
                                 }
                                 .padding(.vertical, 4)
                             }
+                        } else if !state.hasFullSensorSweep {
+                            // No reading for this group yet because the full sweep just
+                            // started (tab/popover reopened). Show a "---" placeholder
+                            // instead of omitting the row — the alternative would either
+                            // hide it (rows popping in/out) or, worse, briefly show
+                            // whatever value was cached from before as if it were current.
+                            // Once the sweep completes, a group with no reading is simply
+                            // absent (this Mac has no such sensor).
+                            HStack {
+                                Text(group.rawValue)
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .textCase(.uppercase)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Text("---")
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.trailing, 8)
+                            }
+                            .padding(.vertical, 4)
                         }
                     }
                 }

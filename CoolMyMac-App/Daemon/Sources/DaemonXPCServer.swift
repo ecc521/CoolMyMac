@@ -428,10 +428,11 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
     }
 
     func getThermalFailsafeSpeeds(withReply reply: @escaping (Double, Double, Error?) -> Void) {
-        let savedHeavy = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "heavyFailsafeSpeed") ?? 0
-        let savedCritical = UserDefaults(suiteName: "com.coolmymac.daemon")?.double(forKey: "criticalFailsafeSpeed") ?? 0
-        let heavy = savedHeavy == 0 ? 0.50 : savedHeavy
-        let critical = savedCritical == 0 ? 1.00 : savedCritical
+        // 0.0 is a valid, explicit "Disabled" selection — only fall back to the default
+        // when the key has never been written, not when it's 0.
+        let defaults = UserDefaults(suiteName: "com.coolmymac.daemon")
+        let heavy = (defaults?.object(forKey: "heavyFailsafeSpeed") as? Double) ?? 0.50
+        let critical = (defaults?.object(forKey: "criticalFailsafeSpeed") as? Double) ?? 1.00
         reply(heavy, critical, nil)
     }
 

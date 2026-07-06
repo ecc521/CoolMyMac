@@ -89,6 +89,16 @@ struct PopoverView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
+            } else if !state.hasFullSensorSweep {
+                // Clock speeds only come from the full sweep, which just started (the
+                // popover reopened). Show a loading placeholder rather than nothing — the
+                // alternative, briefly re-showing whatever clock readings were last cached,
+                // would look like current data when it could be many seconds stale.
+                Text("Loading clock speeds…")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
             }
 
             // MARK: 4. Preset Picker

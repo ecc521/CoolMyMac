@@ -54,16 +54,25 @@ final class AppState {
         didSet { defaults.set(iconDisplayMode.rawValue, forKey: "iconDisplayMode") }
     }
 
-    var dynamicIconEnabled: Bool {
-        get { defaults.object(forKey: "dynamicIconEnabled") == nil ? true : defaults.bool(forKey: "dynamicIconEnabled") }
-        set { defaults.set(newValue, forKey: "dynamicIconEnabled") }
+    // Stored (not computed) for the same reason as launchAtLogin below — a computed
+    // get/set backed directly by UserDefaults is invisible to Observation, so neither
+    // the toggle nor the icon's live color would update when this changed.
+    var dynamicIconEnabled: Bool = {
+        let defaults = UserDefaults.standard
+        return defaults.object(forKey: "dynamicIconEnabled") == nil ? true : defaults.bool(forKey: "dynamicIconEnabled")
+    }() {
+        didSet { defaults.set(dynamicIconEnabled, forKey: "dynamicIconEnabled") }
     }
     
-    var launchAtLogin: Bool {
-        get { SMAppService.mainApp.status == .enabled }
-        set {
+    // Stored (not computed) so mutating it actually notifies Observation and re-renders
+    // the toggle. A computed get/set backed directly by SMAppService.mainApp.status never
+    // fires a change notification — the checkbox would visually stick at whatever it showed
+    // on the last unrelated re-render.
+    var launchAtLogin: Bool = SMAppService.mainApp.status == .enabled {
+        didSet {
+            guard oldValue != launchAtLogin else { return }
             do {
-                if newValue {
+                if launchAtLogin {
                     if SMAppService.mainApp.status != .enabled {
                         try SMAppService.mainApp.register()
                     }
@@ -74,8 +83,16 @@ final class AppState {
                 }
             } catch {
                 logger.error("Failed to set login item: \(error.localizedDescription)")
+                // Revert to the actual system state since the change failed.
+                launchAtLogin = SMAppService.mainApp.status == .enabled
             }
         }
+    }
+
+    // Re-reads SMAppService's status in case it changed outside this toggle (e.g. the
+    // user disabled it from System Settings > Login Items directly).
+    func refreshLaunchAtLoginStatus() {
+        launchAtLogin = SMAppService.mainApp.status == .enabled
     }
 
     var allowUnprivilegedCLI: Bool = false
@@ -152,7 +169,9 @@ final class AppState {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self, self.daemonStatus != .installed else { return }
+                guard let self else { return }
+                self.refreshLaunchAtLoginStatus()
+                guard self.daemonStatus != .installed else { return }
                 self.refresh()
             }
         }
@@ -249,7 +268,19 @@ final class AppState {
 
     func endViewingAllSensors(_ token: String) {
         fullSensorViewers.remove(token)
+        if fullSensorViewers.isEmpty {
+            // Groups outside the driving set (clockSpeed, vrm, wireless, etc.) won't be
+            // refreshed again until a full-view surface reopens. Reset the flag so the
+            // next reopen shows a loading state instead of quietly re-presenting whatever
+            // values are still sitting in `sensors` from before as if they were current.
+            hasFullSensorSweep = false
+        }
     }
+
+    // True once a full sweep (readAllSensors) has completed since the last time every
+    // full-view surface (popover, Sensors tab) was closed. Views use this to distinguish
+    // "no data for this group yet" from "this group genuinely doesn't exist on this Mac."
+    var hasFullSensorSweep: Bool = false
 
     private var hasCheckedDaemonVersion = false
 
@@ -317,7 +348,20 @@ final class AppState {
                 if Task.isCancelled { return }
                 
                 if let fetchedSensors {
-                    sensors = fetchedSensors
+                    if viewingAll {
+                        sensors = fetchedSensors
+                        hasFullSensorSweep = true
+                    } else {
+                        // readSensors() only covers the active fan-curve driving groups, not
+                        // the full sweep. A wholesale replace here would blow away the richer
+                        // group data the Sensors tab just showed if isViewingAllSensors flips
+                        // false mid-flight (e.g. the popover closes right as the Sensors tab's
+                        // own viewer token registers) — so merge in place by sensor name instead
+                        // of replacing the array.
+                        var byName = Dictionary(uniqueKeysWithValues: sensors.map { ($0.name, $0) })
+                        for reading in fetchedSensors { byName[reading.name] = reading }
+                        sensors = Array(byName.values)
+                    }
                 }
                 if let fetchedFans {
                     fans = fetchedFans
