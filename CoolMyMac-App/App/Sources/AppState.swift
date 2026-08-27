@@ -54,6 +54,13 @@ final class AppState {
         didSet { defaults.set(iconDisplayMode.rawValue, forKey: "iconDisplayMode") }
     }
 
+    var menuBarItemLayout: MenuBarItemLayout = {
+        let saved = UserDefaults.standard.string(forKey: "menuBarItemLayout") ?? ""
+        return MenuBarItemLayout(rawValue: saved) ?? .horizontal
+    }() {
+        didSet { defaults.set(menuBarItemLayout.rawValue, forKey: "menuBarItemLayout") }
+    }
+
     // Stored (not computed) for the same reason as launchAtLogin below — a computed
     // get/set backed directly by UserDefaults is invisible to Observation, so neither
     // the toggle nor the icon's live color would update when this changed.
@@ -448,6 +455,13 @@ enum IconDisplayMode: String, CaseIterable {
         case .iconAndRPM:  return "Icon + Fan RPM"
         }
     }
+}
+
+enum MenuBarItemLayout: String, CaseIterable {
+    case horizontal
+    case vertical
+
+    var label: String { rawValue.capitalized }
 }
 
 enum DaemonInstallStatus {
