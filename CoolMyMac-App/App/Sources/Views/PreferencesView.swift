@@ -127,6 +127,18 @@ struct GeneralPrefsView: View {
                     }
                     .pickerStyle(.segmented)
 
+                    if state.iconDisplayMode != .iconOnly {
+                        Picker("Layout", selection: Binding(
+                            get: { state.menuBarItemLayout },
+                            set: { state.menuBarItemLayout = $0 }
+                        )) {
+                            ForEach(MenuBarItemLayout.allCases, id: \.self) { layout in
+                                Text(layout.label).tag(layout)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
                     Toggle("Dynamic color icon (green → red based on temp)", isOn: Binding(
                         get: { state.dynamicIconEnabled },
                         set: { state.dynamicIconEnabled = $0 }
