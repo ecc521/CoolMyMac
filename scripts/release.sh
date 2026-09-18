@@ -2,7 +2,8 @@
 set -e
 
 # Configuration
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/CoolMyMac-App"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_DIR="$REPO_ROOT/CoolMyMac-App"
 BUILD_DIR="$PROJECT_DIR/build"
 ARCHIVE_PATH="$BUILD_DIR/CoolMyMac.xcarchive"
 EXPORT_PATH="$BUILD_DIR/Export"
@@ -76,16 +77,22 @@ echo "🔑 SHA256:   $SHA256"
 
 echo ""
 echo "🚀 Publishing GitHub release v$VERSION..."
+NOTES_FILE="$REPO_ROOT/scripts/RELEASE_NOTES.md"
+if [ -f "$NOTES_FILE" ]; then
+    NOTES_ARG=(--notes-file "$NOTES_FILE")
+else
+    NOTES_ARG=(--generate-notes)
+fi
+
 REPO="ecc521/CoolMyMac"
 gh release create "v$VERSION" \
   --repo "$REPO" \
   --title "CoolMyMac v$VERSION" \
-  --generate-notes \
+  "${NOTES_ARG[@]}" \
   "$DMG_PATH"
 
 echo ""
 echo "🍺 Updating Homebrew cask..."
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CASK="$REPO_ROOT/homebrew-coolmymac/Casks/coolmymac.rb"
 sed -i '' "s/version \".*\"/version \"$VERSION\"/" "$CASK"
 sed -i '' "s/sha256 \".*\"/sha256 \"$SHA256\"/" "$CASK"

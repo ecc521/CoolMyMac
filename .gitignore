@@ -56,3 +56,4 @@ cli_out.txt
 *.xcworkspace
 implementation_plan.md
 codebase_audit_final.md
+scripts/RELEASE_NOTES.md
