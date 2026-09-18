@@ -285,36 +285,137 @@ final class AppleSiliconSMC: SMCProvider {
         )
     }
 
+    private let fanControlLock = NSRecursiveLock()
+
     func setFanMinRPM(index: Int, rpm: Int) throws {
-        // On Apple Silicon, to override the fan, we must set F%dMd = 1
-        try setManualMode(true)
-        
-        // Then we write the target RPM. F0Mn is often ignored.
-        try writeRPMKey("F\(index)Tg", rpm: Double(rpm))
-        
-        // To only set the floor, the caller (LaunchDaemon) must be constantly 
-        // comparing this `rpm` to Apple's `F0Ac` and only calling this if `rpm > F0Ac`.
-        // If `rpm <= F0Ac`, it should call `resetFan()`.
+        fanControlLock.lock()
+        defer { fanControlLock.unlock() }
+
+        // M1–M4 machines require the Ftst gate to be unlocked before the per-fan
+        // manual-mode key accepts writes. A target write can otherwise report success
+        // while thermalmonitord remains in control and immediately ignores it.
+        do {
+            try unlockFanControl(index: index)
+            try writeRPMKeyWithRetry("F\(index)Tg", rpm: Double(rpm), maxAttempts: 10)
+        } catch {
+            // A failed target write must not strand the machine in manual mode.
+            try? resetFan(index: index)
+            throw error
+        }
     }
 
     func resetFan(index: Int) throws {
-        // Relinquish control back to thermalmonitord
-        try setManualMode(false)
+        fanControlLock.lock()
+        defer { fanControlLock.unlock() }
+
+        // Ftst is the global fan-control gate on M1–M4. Clearing it hands all fans
+        // back to thermalmonitord. Newer machines without Ftst use per-fan mode keys.
+        do {
+            let ftst = try readKey("Ftst")
+            guard ftst.dataSize > 0 else { throw SMCError.readFailed("Ftst has empty payload") }
+            if ftst.bytes.first != 0 {
+                var bytes = ftst.bytes
+                bytes[0] = 0
+                try writeKeyWithRetry("Ftst", bytes: bytes, dataType: ftst.dataType,
+                                      dataSize: ftst.dataSize, maxAttempts: 10)
+            }
+            return
+        } catch SMCError.keyNotFound {
+            // Ftst is absent on newer hardware; use its per-fan mode key instead.
+        }
+
+        try writeFanMode(index: index, manual: false)
+        try? writeRPMKey("F\(index)Tg", rpm: 0)
     }
 
-    private func setManualMode(_ manual: Bool) throws {
-        let value: UInt8 = manual ? 1 : 0
-        let bytes: [UInt8] = [value]
-        
-        let count = try fanCount()
-        for i in 0..<count {
-            // Write to F%dmd (Fan Mode: 0=Auto, 1=Manual) - note the lowercase 'md'
+    private var fanModeKeyUsesLowercase: Bool?
+
+    private func fanModeKey(index: Int) throws -> String {
+        if let usesLowercase = fanModeKeyUsesLowercase {
+            return usesLowercase ? "F\(index)md" : "F\(index)Md"
+        }
+
+        do {
+            _ = try readKey("F0md")
+            fanModeKeyUsesLowercase = true
+        } catch SMCError.keyNotFound {
+            _ = try readKey("F0Md")
+            fanModeKeyUsesLowercase = false
+        }
+        return fanModeKeyUsesLowercase == true ? "F\(index)md" : "F\(index)Md"
+    }
+
+    private func writeFanMode(index: Int, manual: Bool) throws {
+        let key = try fanModeKey(index: index)
+        let value = try readKey(key)
+        var bytes = value.bytes
+        guard !bytes.isEmpty else { throw SMCError.keyNotFound(key) }
+        bytes[0] = manual ? 1 : 0
+        try writeKey(key, bytes: bytes, dataType: value.dataType, dataSize: value.dataSize)
+    }
+
+    private func unlockFanControl(index: Int) throws {
+        let ftst: SMCVal_t
+        do {
+            ftst = try readKey("Ftst")
+        } catch SMCError.keyNotFound {
+            // Newer hardware without Ftst accepts the per-fan mode directly.
+            try writeFanMode(index: index, manual: true)
+            return
+        }
+
+        // M1–M4 require Ftst=1 before F%dmd/F%dMd becomes writable.
+        guard ftst.dataSize > 0 else { throw SMCError.readFailed("Ftst has empty payload") }
+        if ftst.bytes.first != 1 {
+            var bytes = ftst.bytes
+            bytes[0] = 1
+            try writeKeyWithRetry("Ftst", bytes: bytes, dataType: ftst.dataType,
+                                  dataSize: ftst.dataSize, maxAttempts: 100)
+
+            // thermalmonitord needs time to release ownership after Ftst changes.
+            Thread.sleep(forTimeInterval: 3.0)
+        }
+
+        var lastError: Error?
+        for attempt in 0..<20 {
             do {
-                try writeKey("F\(i)md", bytes: bytes, dataType: "ui8", dataSize: 1)
+                try writeFanMode(index: index, manual: true)
+                return
             } catch {
-                // Ignore if specific fan mode key fails, try next
+                lastError = error
+                if attempt < 19 { Thread.sleep(forTimeInterval: 0.1) }
             }
         }
+        throw lastError ?? SMCError.writeFailed("F\(index) mode")
+    }
+
+    private func writeRPMKeyWithRetry(_ key: String, rpm: Double, maxAttempts: Int) throws {
+        var lastError: Error?
+        for attempt in 0..<maxAttempts {
+            do {
+                try writeRPMKey(key, rpm: rpm)
+                return
+            } catch {
+                lastError = error
+                if attempt < maxAttempts - 1 { Thread.sleep(forTimeInterval: 0.05) }
+            }
+        }
+        throw lastError ?? SMCError.writeFailed(key)
+    }
+
+    private func writeKeyWithRetry(_ key: String, bytes: [UInt8], dataType: String,
+                                   dataSize: UInt32, maxAttempts: Int) throws {
+        var lastError: Error?
+        for attempt in 0..<maxAttempts {
+            do {
+                try writeKey(key, bytes: bytes, dataType: dataType, dataSize: dataSize)
+                return
+            } catch {
+                lastError = error
+                if attempt < maxAttempts - 1 { Thread.sleep(forTimeInterval: 0.05) }
+            }
+        }
+        throw lastError ?? SMCError.writeFailed(key)
     }
 
     // MARK: - IOKit Private Helpers
