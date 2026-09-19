@@ -40,4 +40,22 @@ public protocol SMCProvider {
     func fanCount() throws -> Int
     func setFanMinRPM(index: Int, rpm: Int) throws
     func resetFan(index: Int) throws
+    func resetAllFans() throws
+}
+
+extension SMCProvider {
+    public func resetAllFans() throws {
+        let count = try fanCount()
+        var firstError: Error?
+        for i in 0..<count {
+            do {
+                try resetFan(index: i)
+            } catch {
+                firstError = firstError ?? error
+            }
+        }
+        if let error = firstError {
+            throw error
+        }
+    }
 }

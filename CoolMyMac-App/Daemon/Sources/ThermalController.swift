@@ -313,7 +313,7 @@ final class ThermalController: @unchecked Sendable {
             for fan in allFans {
                 if profile.curve.points.isEmpty {
                     // Yield control back to Apple SMC
-                    if fansAreManaged {
+                    if areFansManaged {
                         try? smc.resetFan(index: fan.id)
                     }
                 } else {
@@ -339,7 +339,9 @@ final class ThermalController: @unchecked Sendable {
                     // Yielding based on currentRPM causes infinite oscillation (thrashing)
                     // because actual RPM bounces around the target RPM.
                     try smc.setFanMinRPM(index: fan.id, rpm: targetRPM)
-                    fansAreManaged = true
+                    stateLock.lock()
+                    _fansAreManaged = true
+                    stateLock.unlock()
                 }
             }
 
@@ -392,18 +394,26 @@ final class ThermalController: @unchecked Sendable {
 
     // MARK: - Fan Reset
 
-    private var fansAreManaged = false
+    private var _fansAreManaged = false
+
+    var areFansManaged: Bool {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return _fansAreManaged
+    }
 
     func resetAllFansIfManaged() {
-        guard fansAreManaged else { return }
+        guard areFansManaged else { return }
         resetAllFans()
     }
 
-    private func resetAllFans() {
+    func resetAllFans() {
         guard let smc = smcController else { return }
         do {
             try smc.resetAllFans()
-            fansAreManaged = false
+            stateLock.lock()
+            _fansAreManaged = false
+            stateLock.unlock()
             lastSmoothedTemp = 0.0
             thermalLogger.info("All fans reset to Apple auto")
         } catch {

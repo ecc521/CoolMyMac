@@ -75,10 +75,7 @@ public final class SMCController {
 
     /// Resets all fans to Apple's automatic control.
     public func resetAllFans() throws {
-        let count = try fanCount()
-        for i in 0..<count {
-            try provider.resetFan(index: i)
-        }
+        try provider.resetAllFans()
     }
 
     // MARK: - Aggregated Temperature (for profile-driven fan control)

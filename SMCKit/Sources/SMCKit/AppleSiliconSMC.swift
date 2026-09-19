@@ -328,6 +328,39 @@ final class AppleSiliconSMC: SMCProvider {
         try? writeRPMKey("F\(index)Tg", rpm: 0)
     }
 
+    func resetAllFans() throws {
+        fanControlLock.lock()
+        defer { fanControlLock.unlock() }
+
+        // Ftst is the global fan-control gate on M1–M4. Clearing it once hands all fans
+        // back to thermalmonitord in a single atomic operation.
+        do {
+            let ftst = try readKey("Ftst")
+            guard ftst.dataSize > 0 else { throw SMCError.readFailed("Ftst has empty payload") }
+            if ftst.bytes.first != 0 {
+                var bytes = ftst.bytes
+                bytes[0] = 0
+                try writeKeyWithRetry("Ftst", bytes: bytes, dataType: ftst.dataType,
+                                      dataSize: ftst.dataSize, maxAttempts: 10)
+            }
+            return
+        } catch SMCError.keyNotFound {
+            // Ftst is absent on newer hardware; use per-fan mode key instead.
+        }
+
+        let count = try fanCount()
+        var firstError: Error?
+        for i in 0..<count {
+            do {
+                try writeFanMode(index: i, manual: false)
+                try? writeRPMKey("F\(i)Tg", rpm: 0)
+            } catch {
+                firstError = firstError ?? error
+            }
+        }
+        if let error = firstError { throw error }
+    }
+
     private var fanModeKeyUsesLowercase: Bool?
 
     private func fanModeKey(index: Int) throws -> String {

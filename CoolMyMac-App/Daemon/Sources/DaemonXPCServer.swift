@@ -109,9 +109,16 @@ final class DaemonXPCServer: NSObject, NSXPCListenerDelegate {
         DaemonXPCServer.connectionLock.unlock()
         
         let isSystemMode = ProfileStore.shared.getActiveProfile().curve.points.isEmpty
-        if isSystemMode && count == 0 {
+        guard isSystemMode && count == 0 else { return }
+
+        // Ensure hardware is released to Apple control before exiting
+        ThermalController.shared.resetAllFansIfManaged()
+
+        if !ThermalController.shared.areFansManaged {
             xpcLogger.notice("Auto-suspending daemon: System profile active and 0 connected clients. launchd will automatically revive us when needed.")
             exit(0)
+        } else {
+            xpcLogger.warning("Auto-suspend deferred: fans are still managed or reset failed.")
         }
     }
 
@@ -210,12 +217,18 @@ private final class XPCHandler: NSObject, CoolMyMacXPCProtocol {
         }
         do {
             try ProfileStore.shared.setActiveProfile(id: name)
+            let isSystem = ProfileStore.shared.getActiveProfile().curve.points.isEmpty
+            if isSystem {
+                ThermalController.shared.resetAllFansIfManaged()
+            }
             reply(nil)
             
             // Check if we just switched to System mode and should auto-suspend
             // We delay execution slightly so the reply makes it back to the client before we exit.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                DaemonXPCServer.checkAutoSuspend()
+            if isSystem {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    DaemonXPCServer.checkAutoSuspend()
+                }
             }
         } catch {
             xpcLogger.error("setActiveProfile failed: \(error.localizedDescription, privacy: .public)")
