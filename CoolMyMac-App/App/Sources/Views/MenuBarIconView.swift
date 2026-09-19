@@ -77,7 +77,7 @@ struct MenuBarIconView: View {
                 anchor: temperatureAnchor
             )
         case .iconAndRPM:
-            reading(state.fans.first.map { "\($0.currentRPM)" } ?? "", anchor: "99999")
+            reading(state.fans.first.map { "\($0.currentRPM)" } ?? "", anchor: "9999")
         }
     }
 
