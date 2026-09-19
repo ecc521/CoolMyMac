@@ -56,7 +56,7 @@ final class AppState {
 
     var menuBarItemLayout: MenuBarItemLayout = {
         let saved = UserDefaults.standard.string(forKey: "menuBarItemLayout") ?? ""
-        return MenuBarItemLayout(rawValue: saved) ?? .horizontal
+        return MenuBarItemLayout(rawValue: saved) ?? .vertical
     }() {
         didSet { defaults.set(menuBarItemLayout.rawValue, forKey: "menuBarItemLayout") }
     }
