@@ -26,10 +26,18 @@ final class AppState {
     var cpuTemp: Double? { sensors.filter { $0.group == .cpuCore }.map(\.value).max() }
     var gpuTemp: Double? { sensors.filter { $0.group == .gpu }.map(\.value).max() }
 
-    // Hottest sensor reading for the icon color gradient
-    var hottestTemp: Double {
-        let coreTemps = sensors.filter { $0.group == .cpuCore || $0.group == .gpu }.map(\.value)
-        return coreTemps.max() ?? (sensors.map(\.value).max() ?? 0.0)
+    // Menu bar temperature: the active sensors aggregated the same way the daemon's
+    // fan curve does, but without its smoothing. Nil until a matching reading arrives.
+    var menuBarTemp: Double? {
+        let settings = ProfileSettings(
+            sources: activeSensors.isEmpty ? [.cpuCore, .gpu] : Array(activeSensors),
+            excludedSensors: Array(excludedSensors),
+            aggregation: activeProfile.settings.aggregation
+        )
+        guard sensors.contains(where: { settings.sources.contains($0.group) && !excludedSensors.contains($0.name) }) else {
+            return nil
+        }
+        return SMCController.drivingTemperature(from: sensors, settings: settings)
     }
 
     // MARK: - Daemon Status
@@ -451,7 +459,7 @@ enum IconDisplayMode: String, CaseIterable {
     var label: String {
         switch self {
         case .iconOnly:    return "Icon Only"
-        case .iconAndTemp: return "Icon + CPU Temp"
+        case .iconAndTemp: return "Icon + Temp"
         case .iconAndRPM:  return "Icon + Fan RPM"
         }
     }

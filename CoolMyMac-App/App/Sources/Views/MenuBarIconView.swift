@@ -13,7 +13,7 @@ final class MenuBarIconCache {
         let mode: IconDisplayMode
         let isVertical: Bool
         let dynamicColor: Bool
-        let roundedTemp: Int
+        let roundedTemp: Int?
         let readingText: String
         let readingAnchor: String
         let isDark: Bool
@@ -57,7 +57,7 @@ struct MenuBarIconView: View {
         case .iconOnly:
             return ""
         case .iconAndTemp:
-            return state.cpuTemp.map { String(format: temperatureFormat, $0) } ?? ""
+            return state.menuBarTemp.map { String(format: temperatureFormat, $0) } ?? ""
         case .iconAndRPM:
             return state.fans.first.map { "\($0.currentRPM)" } ?? ""
         }
@@ -93,9 +93,9 @@ struct MenuBarIconView: View {
         case .iconOnly:
             return "CoolMyMac"
         case .iconAndTemp:
-            guard let temp = state.cpuTemp else { return "CoolMyMac, CPU temperature unavailable" }
+            guard let temp = state.menuBarTemp else { return "CoolMyMac, temperature unavailable" }
             let value = String(format: decimalResolution == 1 ? "%.1f°" : "%.0f°", temp)
-            return "CoolMyMac, CPU temperature \(value)"
+            return "CoolMyMac, temperature \(value)"
         case .iconAndRPM:
             guard let rpm = state.fans.first?.currentRPM else { return "CoolMyMac, fan speed unavailable" }
             return "CoolMyMac, fan speed \(rpm) RPM"
@@ -104,12 +104,12 @@ struct MenuBarIconView: View {
 
     private var renderedImage: NSImage {
         let isDark = colorScheme == .dark
-        let roundedTemp = Int(state.hottestTemp.rounded())
+        let temp = state.menuBarTemp
         let key = MenuBarIconCache.Key(
             mode: state.iconDisplayMode,
             isVertical: usesVerticalLayout,
             dynamicColor: state.dynamicIconEnabled,
-            roundedTemp: roundedTemp,
+            roundedTemp: temp.map { Int($0.rounded()) },
             readingText: currentReadingValue,
             readingAnchor: readingAnchor,
             isDark: isDark
@@ -120,7 +120,7 @@ struct MenuBarIconView: View {
                 mode: state.iconDisplayMode,
                 isVertical: usesVerticalLayout,
                 dynamicColor: state.dynamicIconEnabled,
-                hottestTemp: state.hottestTemp,
+                temp: temp,
                 readingText: currentReadingValue,
                 readingAnchor: readingAnchor,
                 isDark: isDark
@@ -132,24 +132,28 @@ struct MenuBarIconView: View {
         mode: IconDisplayMode,
         isVertical: Bool,
         dynamicColor: Bool,
-        hottestTemp: Double,
+        temp: Double?,
         readingText: String,
         readingAnchor: String,
         isDark: Bool
     ) -> NSImage {
-        let norm = max(0, min(1, (hottestTemp - Self.minTemp) / (Self.maxTemp - Self.minTemp)))
-        let hue = 0.33 * (1.0 - norm)
-        let brightness = isDark ? 0.95 : 0.65
-        let saturation = isDark ? 0.85 : 1.0
-        let thermalNSColor = NSColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1.0)
+        // Without a reading yet, the icon stays in the neutral label color.
+        let useThermalColor = dynamicColor && temp != nil
 
         let symSize: CGFloat = isVertical ? 11 : 14
         let symConfig: NSImage.SymbolConfiguration
-        if dynamicColor {
+        if useThermalColor, let temp {
+            let norm = max(0, min(1, (temp - Self.minTemp) / (Self.maxTemp - Self.minTemp)))
+            let hue = 0.33 * (1.0 - norm)
+            let brightness = isDark ? 0.95 : 0.65
+            let saturation = isDark ? 0.85 : 1.0
+            let thermalNSColor = NSColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1.0)
             symConfig = NSImage.SymbolConfiguration(pointSize: symSize, weight: .medium)
                 .applying(NSImage.SymbolConfiguration(paletteColors: [thermalNSColor, thermalNSColor.withAlphaComponent(0.6)]))
         } else {
+            // A plain symbol is a template image, which draws black when composited below.
             symConfig = NSImage.SymbolConfiguration(pointSize: symSize, weight: .medium)
+                .applying(NSImage.SymbolConfiguration(paletteColors: [.labelColor]))
         }
 
         guard let symbol = NSImage(systemSymbolName: "wind", accessibilityDescription: nil)?.withSymbolConfiguration(symConfig) else {
@@ -157,7 +161,7 @@ struct MenuBarIconView: View {
         }
 
         if mode == .iconOnly {
-            if !dynamicColor {
+            if !useThermalColor {
                 symbol.isTemplate = true
             }
             return symbol
